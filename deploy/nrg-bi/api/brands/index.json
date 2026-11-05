@@ -1,0 +1,177 @@
+{
+ "note": "Товарные знаки правообладателей; только внутреннее демо",
+ "items": {
+  "korzinka": {
+   "file": "korzinka.png",
+   "match": [
+    "korzinka",
+    "корзинка"
+   ],
+   "source": "korzinka.uz",
+   "url": "https://korzinka.uz/fav.png",
+   "downloaded": "2026-11-05"
+  },
+  "havas": {
+   "file": "havas.svg",
+   "match": [
+    "havas",
+    "хавас"
+   ],
+   "source": "havasfood.uz",
+   "url": "https://havasfood.uz/wp-content/themes/havas/assets/images/logo.svg",
+   "downloaded": "2026-11-05"
+  },
+  "xalq-banki": {
+   "file": "xalq-banki.svg",
+   "match": [
+    "xalq bank",
+    "халк банк"
+   ],
+   "source": "xb.uz",
+   "url": "https://xb.uz/_next/static/media/logo.36vahqtq2knd0.svg",
+   "downloaded": "2026-11-05"
+  },
+  "ipak-yoli-banki": {
+   "file": "ipak-yoli-banki.svg",
+   "match": [
+    "ipak yoli bank",
+    "ipak yuli bank",
+    "ипак йули банк"
+   ],
+   "source": "ipakyulibank.uz",
+   "url": "https://ipakyulibank.uz/images/iyb_logo_v2.svg",
+   "downloaded": "2026-11-05"
+  },
+  "kapitalbank": {
+   "file": "kapitalbank.svg",
+   "match": [
+    "kapitalbank",
+    "kapital bank",
+    "капитал банк",
+    "капиталбанк"
+   ],
+   "source": "kapitalbank.uz",
+   "url": "https://kapitalbank.uz/icons/favicon_512.svg",
+   "downloaded": "2026-11-05"
+  },
+  "evos": {
+   "file": "evos.svg",
+   "match": [
+    "evos"
+   ],
+   "source": "evos.uz",
+   "url": "https://evos.uz/images/brand/evos-logo.svg",
+   "downloaded": "2026-11-05"
+  },
+  "oqtepa": {
+   "file": "oqtepa.svg",
+   "match": [
+    "oqtepa"
+   ],
+   "source": "oqtepalavash.uz",
+   "url": "https://cc.oqtepalavash.uz/siteimg/logo.svg",
+   "downloaded": "2026-11-05"
+  },
+  "yaponamama": {
+   "file": "yaponamama.png",
+   "match": [
+    "yaponamama",
+    "японамама"
+   ],
+   "source": "yaponamama.uz (иконка сайта)",
+   "url": "https://cdn.delever.uz/delever/fd7c38b0-b517-4124-a77b-16083606358a",
+   "downloaded": "2026-11-05"
+  },
+  "uzbekneftegaz": {
+   "file": "uzbekneftegaz.png",
+   "match": [
+    "uzbekneftegaz",
+    "узбекнефтегаз"
+   ],
+   "source": "ung.uz",
+   "url": "https://ung.uz/images/loader_image.png",
+   "downloaded": "2026-11-05"
+  },
+  "tok-bor": {
+   "file": "tok-bor.png",
+   "match": [
+    "tok bor",
+    "tokbor"
+   ],
+   "source": "tokbor.uz",
+   "url": "https://tokbor.uz/themes/tokbor-oz/assets/favicon/apple-touch-icon.png",
+   "downloaded": "2026-11-05"
+  },
+  "baraka": {
+   "file": "baraka.png",
+   "match": [
+    "baraka"
+   ],
+   "source": "barakamarket.uz",
+   "url": "https://barakamarket.uz/assets/logoOrange-PXfkVhm9.png",
+   "downloaded": "2026-11-05"
+  },
+  "british-school": {
+   "file": "british-school.png",
+   "match": [
+    "british school",
+    "британская школа"
+   ],
+   "source": "nordangliaeducation.com/bst-tashkent",
+   "url": "https://www.nordangliaeducation.com/bst-tashkent/-/media/bst-tashkent/logo.png?h=67&iar=0&w=369&rev=fd7de55174ce4606bff08a21cedf4c07&hash=D99DE1F410284B90D4428EC81CA7D734",
+   "downloaded": "2026-11-05"
+  },
+  "kfc": {
+   "file": "kfc.svg",
+   "match": [
+    "kfc"
+   ],
+   "source": "Wikimedia Commons: File:KFC logo.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/KFC_logo.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  },
+  "intersport": {
+   "file": "intersport.svg",
+   "match": [
+    "intersport"
+   ],
+   "source": "Wikimedia Commons: File:Intersport logo 2022.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Intersport_logo_2022.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  },
+  "audi": {
+   "file": "audi.svg",
+   "match": [
+    "audi"
+   ],
+   "source": "Wikimedia Commons: File:Audi-Logo 2016.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Audi-Logo_2016.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  },
+  "bmw": {
+   "file": "bmw.svg",
+   "match": [
+    "bmw"
+   ],
+   "source": "Wikimedia Commons: File:BMW.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/4/44/BMW.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  },
+  "chevrolet": {
+   "file": "chevrolet.svg",
+   "match": [
+    "chevrolet"
+   ],
+   "source": "Wikimedia Commons: File:Chevrolet bowtie 2023.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Chevrolet_bowtie_2023.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  },
+  "tashkent-metro": {
+   "file": "tashkent-metro.svg",
+   "match": [],
+   "source": "Wikimedia Commons: File:Tashkent metro logo.svg",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Tashkent_metro_logo.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+   "downloaded": "2026-11-05"
+  }
+ }
+}

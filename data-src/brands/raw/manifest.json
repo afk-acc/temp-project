@@ -1,0 +1,135 @@
+{
+ "korzinka": {
+  "file": "korzinka.png",
+  "url": "https://korzinka.uz/fav.png",
+  "source": "korzinka.uz",
+  "bytes": 49546,
+  "downloaded": "2026-11-05"
+ },
+ "havas": {
+  "file": "havas.svg",
+  "url": "https://havasfood.uz/wp-content/themes/havas/assets/images/logo.svg",
+  "source": "havasfood.uz",
+  "bytes": 4112,
+  "downloaded": "2026-11-05"
+ },
+ "xalq-banki": {
+  "file": "xalq-banki.svg",
+  "url": "https://xb.uz/_next/static/media/logo.36vahqtq2knd0.svg",
+  "source": "xb.uz",
+  "bytes": 21887,
+  "downloaded": "2026-11-05"
+ },
+ "ipak-yoli-banki": {
+  "file": "ipak-yoli-banki.svg",
+  "url": "https://ipakyulibank.uz/images/iyb_logo_v2.svg",
+  "source": "ipakyulibank.uz",
+  "bytes": 9392,
+  "downloaded": "2026-11-05"
+ },
+ "kapitalbank": {
+  "file": "kapitalbank.svg",
+  "url": "https://kapitalbank.uz/icons/favicon_512.svg",
+  "source": "kapitalbank.uz",
+  "bytes": 409,
+  "downloaded": "2026-11-05"
+ },
+ "evos": {
+  "file": "evos.svg",
+  "url": "https://evos.uz/images/brand/evos-logo.svg",
+  "source": "evos.uz",
+  "bytes": 3574,
+  "downloaded": "2026-11-05"
+ },
+ "oqtepa": {
+  "file": "oqtepa.svg",
+  "url": "https://cc.oqtepalavash.uz/siteimg/logo.svg",
+  "source": "oqtepalavash.uz",
+  "bytes": 8118,
+  "downloaded": "2026-11-05"
+ },
+ "yaponamama": {
+  "file": "yaponamama.webp",
+  "url": "https://cdn.delever.uz/delever/fd7c38b0-b517-4124-a77b-16083606358a",
+  "source": "yaponamama.uz (иконка сайта)",
+  "bytes": 43574,
+  "downloaded": "2026-11-05"
+ },
+ "yaponamama-alt": {
+  "file": "yaponamama-alt.png",
+  "url": "https://yaponamama.uz/yapona.png",
+  "source": "yaponamama.uz",
+  "bytes": 6962,
+  "downloaded": "2026-11-05"
+ },
+ "uzbekneftegaz": {
+  "file": "uzbekneftegaz.png",
+  "url": "https://ung.uz/images/loader_image.png",
+  "source": "ung.uz",
+  "bytes": 52112,
+  "downloaded": "2026-11-05"
+ },
+ "tok-bor": {
+  "file": "tok-bor.png",
+  "url": "https://tokbor.uz/themes/tokbor-oz/assets/favicon/apple-touch-icon.png",
+  "source": "tokbor.uz",
+  "bytes": 8337,
+  "downloaded": "2026-11-05"
+ },
+ "baraka": {
+  "file": "baraka.png",
+  "url": "https://barakamarket.uz/assets/logoOrange-PXfkVhm9.png",
+  "source": "barakamarket.uz",
+  "bytes": 1429,
+  "downloaded": "2026-11-05"
+ },
+ "british-school": {
+  "file": "british-school.png",
+  "url": "https://www.nordangliaeducation.com/bst-tashkent/-/media/bst-tashkent/logo.png?h=67&iar=0&w=369&rev=fd7de55174ce4606bff08a21cedf4c07&hash=D99DE1F410284B90D4428EC81CA7D734",
+  "source": "nordangliaeducation.com/bst-tashkent",
+  "bytes": 7077,
+  "downloaded": "2026-11-05"
+ },
+ "kfc": {
+  "file": "kfc.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/KFC_logo.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:KFC logo.svg",
+  "bytes": 5093,
+  "downloaded": "2026-11-05"
+ },
+ "intersport": {
+  "file": "intersport.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Intersport_logo_2022.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:Intersport logo 2022.svg",
+  "bytes": 3503,
+  "downloaded": "2026-11-05"
+ },
+ "audi": {
+  "file": "audi.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Audi-Logo_2016.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:Audi-Logo 2016.svg",
+  "bytes": 4788,
+  "downloaded": "2026-11-05"
+ },
+ "bmw": {
+  "file": "bmw.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/4/44/BMW.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:BMW.svg",
+  "bytes": 12190,
+  "downloaded": "2026-11-05"
+ },
+ "chevrolet": {
+  "file": "chevrolet.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Chevrolet_bowtie_2023.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:Chevrolet bowtie 2023.svg",
+  "bytes": 371,
+  "downloaded": "2026-11-05"
+ },
+ "tashkent-metro": {
+  "file": "tashkent-metro.svg",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/Tashkent_metro_logo.svg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+  "source": "Wikimedia Commons: File:Tashkent metro logo.svg",
+  "bytes": 2527,
+  "downloaded": "2026-11-05"
+ }
+}

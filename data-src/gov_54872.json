@@ -1,0 +1,66 @@
+{
+ "go_id": 39883,
+ "object_id": 54872,
+ "region_soato": 1726,
+ "district_soato": 1726290,
+ "object_json": {
+  "id": 54872,
+  "lat": "41.306851753296584",
+  "long": "69.2926711589098",
+  "name": "\tЎз ер участкасида “Савдо ва маиший хизмат кўрсатиш, ресторан объектлари бўлган кўп квартирали турар-жой бинолари”ни қуриш (ички назоратчи ўзгарганлиги ҳамда қурилиш муддатини тўғрилаш)",
+  "status": {
+   "id": 2,
+   "name": "Jarayonda"
+  },
+  "task_id": 296312802,
+  "deadline": "2028-02-28",
+  "sphere_id": 57,
+  "difficulty": 4,
+  "block_count": 3,
+  "region_soato": 1726,
+  "reestr_number": "264651",
+  "district_soato": 1726290,
+  "apartment_count": 252,
+  "number_protocol": "141701814",
+  "location_building": "Toʻytepa MFY, Sodiq Azimov ko'chasi, 49-a-uy",
+  "organization_name": "\"MB TECH COSTUMER\" МЧЖ"
+ },
+ "sphere_id": 57,
+ "block_count": 3,
+ "apartment_count": 252,
+ "object_status": 2,
+ "blocks": [
+  {
+   "id": 57225,
+   "area": null,
+   "name": "A",
+   "floor": "30",
+   "accepted": false,
+   "apartment_count": "252"
+  },
+  {
+   "id": 57226,
+   "area": null,
+   "name": "Noturar",
+   "floor": "5",
+   "accepted": false,
+   "apartment_count": null
+  },
+  {
+   "id": 57227,
+   "area": null,
+   "name": "Avtoturargoh",
+   "floor": "2",
+   "accepted": false,
+   "apartment_count": null
+  }
+ ],
+ "dedline": "2028-02-28",
+ "closed_at": null,
+ "go_status": 1,
+ "created_at": "2026-09-27 22:16:53",
+ "updated_at": "2026-09-27 22:16:53",
+ "lat": 41.306851753296584,
+ "long": 69.2926711589098,
+ "max_floor": 30
+}
