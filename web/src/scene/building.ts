@@ -290,6 +290,12 @@ export class BuildingView {
     this.styleUnits(filter, null, null)
   }
 
+  /** Свежие статусы из API: меши этажа остаются, меняются только данные для подсветки */
+  updateUnits(units: Unit[]) {
+    const byId = new Map(units.map((u) => [u.id, u]))
+    for (const m of this.unitMeshes.values()) m.unit = byId.get(m.unit.id) ?? m.unit
+  }
+
   styleUnits(filter: UnitFilter, hoverId: number | null, selectedId: number | null) {
     for (const { fill, line, unit } of this.unitMeshes.values()) {
       const ok = matchesFilter(unit, filter)

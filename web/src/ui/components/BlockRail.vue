@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Block } from '@/domain/types'
 
-defineProps<{ blocks: Block[]; current: string | null }>()
+const props = defineProps<{ blocks: Block[]; current: string | null }>()
+const maxLevels = computed(() => Math.max(1, ...props.blocks.map((b) => b.levels)))
+/** «Дом 26/3» → «26/3», «Корпус 4» → «4»: в рейке только номер */
+const short = (b: Block) => b.label.replace(/^(Дом|Корпус|Блок)\s*/i, '')
 defineEmits<{ select: [id: string]; hover: [id: string | null] }>()
 </script>
 
@@ -11,8 +15,8 @@ defineEmits<{ select: [id: string]; hover: [id: string | null] }>()
     <ul class="list scroll-thin">
       <li v-for="b in blocks" :key="b.id" :class="{ active: b.id === current }"
           @click="$emit('select', b.id)" @mouseenter="$emit('hover', b.id)" @mouseleave="$emit('hover', null)">
-        <span class="n num">26/{{ b.n }}</span>
-        <span class="bar"><i :style="{ width: `${(b.levels / 12) * 100}%` }" /></span>
+        <span class="n num">{{ short(b) }}</span>
+        <span class="bar"><i :style="{ width: `${(b.levels / maxLevels) * 100}%` }" /></span>
         <span class="lv num">{{ b.levels }} эт.</span>
       </li>
     </ul>

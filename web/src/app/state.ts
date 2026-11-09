@@ -1,5 +1,5 @@
 import { computed, reactive, shallowRef } from 'vue'
-import type { BlockLayout, Context, FloorInfo, FloorType, PlaceCategory, Project, ProjectIndexItem, Unit, UnitStatus } from '@/domain/types'
+import type { ApartmentType, BlockLayout, Context, FloorInfo, FloorType, PlaceCategory, Project, ProjectIndexItem, Unit, UnitStatus } from '@/domain/types'
 import { matchesFilter, type UnitFilter } from '@/domain/units'
 import type { Mode } from '@/scene/Engine'
 
@@ -39,6 +39,8 @@ export const data = {
   observedAt: shallowRef(''),
   projects: shallowRef<ProjectIndexItem[]>([]),
   blockLayouts: shallowRef<Map<string, BlockLayout>>(new Map()),
+  /** Реальные планировки застройщика (код типа → чертёж и комнаты); есть не у всех ЖК */
+  aptTypes: shallowRef<Map<string, ApartmentType>>(new Map()),
 }
 
 export const isMassing = computed(() => data.project.value?.building.mode === 'massing')
@@ -51,6 +53,8 @@ export function activeType(typeId: string): FloorType | undefined {
 }
 export const scopeUnits = computed(() => (isMassing.value ? data.units.value.filter((u) => u.block === state.blockId) : data.units.value))
 export const isTestData = computed(() => data.units.value.some((u) => u.test))
+/** Статусы приходят из CRM застройщика (Laravel), а не из статичного снимка */
+export const isLive = computed(() => data.units.value.some((u) => u.source === 'crm'))
 
 export const selectedBlock = computed(() => data.project.value?.building.blocks?.find((b) => b.id === state.blockId) ?? null)
 

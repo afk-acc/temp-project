@@ -158,6 +158,11 @@ export class Engine {
   load(project: Project, ctx: Context, types: Map<string, FloorType>) {
     this.lat = project.location.lat
     this.lon = project.location.lon
+    // палитра фасада по рендерам застройщика (если в данных проекта она есть)
+    const pal = project.building.palette
+    if (pal?.stone) this.mat.stone.color.set(pal.stone)
+    if (pal?.band) this.mat.band.color.set(pal.band)
+    if (pal?.glass) this.mat.glass.color.set(pal.glass)
     let site: Point[]
     if (project.building.mode === 'massing') {
       this.massing = new MassingView(project, this.mat)
@@ -166,7 +171,8 @@ export class Engine {
     } else {
       this.building = new BuildingView(project, types, this.mat)
       this.scene.add(this.building.root)
-      const pod = types.get('POD2')!.bbox
+      // участок — по габариту первого этажа (подиума), какой бы тип у него ни был
+      const pod = types.get(project.building.floors[0].type)!.bbox
       const az = project.building.azimuth_deg
       site = [[pod[0], pod[1]], [pod[2], pod[1]], [pod[2], pod[3]], [pod[0], pod[3]]].map(
         ([x, y]) => planToENU(x, y, az) as Point,
@@ -316,6 +322,11 @@ export class Engine {
     const pos = c.clone().add(dir.multiplyScalar(dist * 0.5)).setY(c.y + dist * 0.87)
     this.moveCamera(pos, c, 0.9)
     this.controls.minDistance = 12
+  }
+
+  updateUnits(units: Unit[], filter: UnitFilter, hoverId: number | null, selectedId: number | null) {
+    this.building?.updateUnits(units)
+    this.building?.styleUnits(filter, hoverId, selectedId)
   }
 
   styleUnits(filter: UnitFilter, hoverId: number | null, selectedId: number | null) {

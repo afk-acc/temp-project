@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { data, selectedBlock, state } from '@/app/state'
+import { data, isLive, isTestData, selectedBlock, state } from '@/app/state'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
 import { formatDuration, formatDate } from '@/domain/format'
@@ -92,7 +92,8 @@ void props
       <div class="eyebrow">Жилой комплекс</div>
       <div class="big num">{{ blocks.length }} <span>корпусов · {{ project.building.floors_total }} этажей всего</span></div>
       <p class="note">Статус по госреестру: <b>{{ project.gov_registry.status_ru }}</b>. Заказчик — {{ project.developer.legal_name }}, подрядчик — {{ project.gov_registry.contractor }}.</p>
-      <p class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. <b class="warn">Планировки, статусы и цены — тестовые</b>: настоящих планов застройщика в открытом доступе нет.</p>
+      <p v-if="data.aptTypes.value.size" class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. Планировки квартир — из каталога застройщика, <b class="warn">расстановка на этаже условная</b>; статусы и цены ведёт отдел продаж<template v-if="isLive"> в CRM — они обновляются на странице сами</template><template v-if="isTestData">, стартовые значения тестовые</template>.</p>
+      <p v-else class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. <b class="warn">Планировки, статусы и цены — тестовые</b>: настоящих планов застройщика в открытом доступе нет.</p>
     </template>
 
     <div class="near">

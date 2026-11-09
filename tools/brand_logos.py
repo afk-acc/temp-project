@@ -1,7 +1,7 @@
 """Логотипы брендов: очистка SVG, приведение растровых к PNG, реестр «бренд → файл → источник».
 
 Вход:  data-src/brands/raw/*.{svg,png,webp,...} + manifest.json (откуда скачано)
-Выход: api-stub/brands/<key>.{svg,png} + api-stub/brands/index.json
+Выход: data-build/brands/<key>.{svg,png} + data-build/brands/index.json
 Запуск: python3 -I tools/brand_logos.py
 
 Логотипы — товарные знаки владельцев. Используются как указатели на места рядом (как на картах),
@@ -17,7 +17,7 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'data-src', 'brands', 'raw')
-OUT = os.path.join(ROOT, 'api-stub', 'brands')
+OUT = os.path.join(ROOT, 'data-build', 'brands')
 
 # бренд → какие названия мест он покрывает (нижний регистр, без апострофов)
 MATCH = {

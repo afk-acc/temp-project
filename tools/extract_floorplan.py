@@ -17,7 +17,7 @@ PAD = 40     # поля в клетках (2 м)
 
 def extract(image_path: str, m_per_px: float, core_px: tuple[float, float], *,
             facade_gap_m: float = 2.2, door_gap_m: float = 1.25,
-            black_lines: bool = False) -> dict:
+            black_lines: bool = False, glass_max_thick_m: float = 0.35) -> dict:
     rgba = pl.load_rgba(image_path)
     walls_px = pl.wall_mask(rgba)
     shafts_px = pl.shaft_mask(rgba)
@@ -52,7 +52,7 @@ def extract(image_path: str, m_per_px: float, core_px: tuple[float, float], *,
 
     # 2. стекло: линии окон в фасадной полосе, сшитые в сплошные полосы, без стен
     glass = pl.close_axis(g_lines & band, int(0.5 / CELL)) & band & ~G
-    thin = int(0.35 / CELL)
+    thin = int(glass_max_thick_m / CELL)
     glass = pl.filter_components(glass, lambda w, h, n: min(w, h) <= thin and max(w, h) * CELL >= 0.5)
 
     # 3. дверные проёмы: короткие разрывы стен, похожие на дверь по форме

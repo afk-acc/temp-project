@@ -20,7 +20,7 @@ import random  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'data-src', 'nrg')
-OUT = os.path.join(ROOT, 'api-stub', 'projects')
+OUT = os.path.join(ROOT, 'data-build', 'projects')
 SLUG = 'nrg-mirzo-ulugbek'
 SNAPSHOT = '2026-11-04'
 H_FIRST, H_TYPICAL, PARAPET = 3.6, 3.0, 1.2   # условно: разрезов нет
@@ -85,7 +85,7 @@ def main():
     osm_ctx = {'elements': [e for e in osm['elements'] if f"{e['type']}/{e['id']}" not in block_ids]}
     ctx = build_context(osm_ctx, lat0, lon0, [[1e6, 1e6], [1e6 + 1, 1e6], [1e6, 1e6 + 1]])
     ctx['places'] = build_places(osm, lat0, lon0, (cx, cy))
-    brands_path = os.path.join(ROOT, 'api-stub', 'brands', 'index.json')
+    brands_path = os.path.join(ROOT, 'data-build', 'brands', 'index.json')
     brands = load(brands_path)['items'] if os.path.exists(brands_path) else {}
     for p in ctx['places']:
         key = logo_for(p['name'], p['category'], brands)
@@ -110,7 +110,7 @@ def main():
                 status = 'sold' if roll < 0.66 else 'booked' if roll < 0.73 else 'available' if roll < 0.96 else 'unavailable'
                 m2 = 14_200_000 * (1 + 0.006 * (f['n'] - 2)) * (0.97 if sl['rooms'] >= 3 else 1.0) * (0.96 + rnd.random() * 0.08)
                 units.append({
-                    'id': b['n'] * 10000 + f['n'] * 100 + sl['slot'],
+                    'id': 8_000_000 + b['n'] * 10000 + f['n'] * 100 + sl['slot'],
                     'number': num, 'floor': f['n'], 'section': 1, 'block': b['id'],
                     'rooms': sl['rooms'], 'area': sl['area'], 'status': status,
                     'price': int(round(sl['area'] * m2 / 1_000_000) * 1_000_000) if status in ('available', 'booked') else None,
@@ -152,6 +152,13 @@ def main():
             'ТЕСТОВЫЕ ДАННЫЕ: планировки квартир сгенерированы по реальным контурам корпусов, статусы и цены случайные — для показа возможностей',
             'Этажность по OSM; у блока 26/13 в 2ГИС указано 4 этажа, в OSM — 5',
             'Метки мест — названия из OSM; логотипы брендов не используются без разрешения правообладателей',
+        ],
+        # «Как собран макет» — окно «О данных» на сайте
+        'about': [
+            {'title': "Корпуса", 'text': "контуры, адреса и этажность из OpenStreetMap: точное положение каждого дома."},
+            {'title': "Статус и участники", 'text': "госпортал строек Shaffof qurilish: заказчик, проектировщик, подрядчик."},
+            {'title': "Места рядом", 'text': "магазины, банки, школы, метро из OpenStreetMap; время пешком — по расстоянию с поправкой на улицы."},
+            {'title': "Вид из окна и солнце", 'text': "считаются по реальному окружению для любого этажа и стороны."},
         ],
         'disclaimer': 'Демонстрация по открытым данным. Не является публичной офертой.',
     }

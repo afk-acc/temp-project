@@ -1,0 +1,205 @@
+{
+  "meta": {
+    "title": "Spliti — yangi uylar sotuvi 3D formatda",
+    "description": "Haqiqiy xaritadagi jonli 3D model: bino, qavat va xonadon tanlash, derazadan koʻrinish, quyosh soatlari, sayr va VR. Sotuv boʻlimi uchun shaxmatka va CRM."
+  },
+  "nav": {
+    "product": "Mahsulot",
+    "crm": "CRM",
+    "process": "Qanday ishlaymiz",
+    "faq": "Savollar",
+    "cta": "Loyihani muhokama qilish"
+  },
+  "hero": {
+    "eyebrow": "Yangi uylar sotuvi 3D formatda · Toshkent",
+    "title1": "Hali qurilmagan",
+    "title2": "uyni koʻrsating",
+    "lead": "Spliti turar-joy majmuasi chizmalarini haqiqiy xaritadagi jonli 3D modelga aylantiradi. Xaridor bino, qavat va xonadonni tanlaydi, derazadan koʻrinish va quyosh soatlarini koʻradi, xonalar boʻylab yuradi — telefonda yoki VR shlemda. Holat va narxlar sotuv boʻlimining CRM tizimidan keladi.",
+    "demo": "Demoni ochish",
+    "talk": "Majmuangizni muhokama qilish",
+    "note": "Demo ochiq maʼlumotlardan yigʻilgan — quruvchi fayllarisiz.",
+    "floor": "Qavat",
+    "onSale": "sotuvda",
+    "of": "dan",
+    "hint": "Uy ustiga olib boring — qavat chiqadi"
+  },
+  "proof": [
+    {
+      "n": "≈1 MB",
+      "t": "birinchi ekranning hammasi: uy, atrof, interfeys"
+    },
+    {
+      "n": "20 s",
+      "t": "va CRMdagi holat saytda — sahifani yangilamasdan"
+    },
+    {
+      "n": "1:1",
+      "t": "xonadon boʻylab va VRdagi sayr masshtabi"
+    },
+    {
+      "n": "0",
+      "t": "ilova oʻrnatish shart emas — brauzerda ishlaydi"
+    }
+  ],
+  "features": {
+    "eyebrow": "Mahsulot",
+    "title": "Xaridor koʻrikdan oldin bilmoqchi boʻlgan hamma narsa",
+    "items": [
+      {
+        "k": "map",
+        "fig": "01-rasm — Uchastka",
+        "t": "Uy oʻz joyida",
+        "d": "Haqiqiy uchastka, qoʻshni uylar, yoʻllar va bogʻlar. Vaqtni surasiz — quyosh va soyalar ham suriladi.",
+        "image": "/api/site/media/map.webp"
+      },
+      {
+        "k": "floor",
+        "fig": "02-rasm — Kesim",
+        "t": "Qavat kesimda",
+        "d": "Qavatni bosing — devorlar va har bir xonadon holati koʻrinadi: sotuvda, bron, sotilgan.",
+        "image": "/api/site/media/floor.webp"
+      },
+      {
+        "k": "sun",
+        "fig": "03-rasm — Insolyatsiya",
+        "t": "Taxminsiz xonadon",
+        "d": "Dunyo tomonlari, derazadan nima koʻrinishi va istalgan sanada toʻgʻri quyosh necha soat — qoʻshni uylarni hisobga olgan holda.",
+        "image": "/api/site/media/sun.webp"
+      },
+      {
+        "k": "view",
+        "fig": "04-rasm — Koʻrinish",
+        "t": "Istalgan qavatdan koʻrinish",
+        "d": "9-qavatda fasad oldida turing va deraza ortida nima boʻlishini koʻring.",
+        "image": "/api/site/media/view.webp"
+      },
+      {
+        "k": "walk",
+        "fig": "05-rasm — Sayr",
+        "t": "Sayr va VR",
+        "d": "Klaviatura yoki telefonda joystik; VR shlemda — 1:1 masshtab.",
+        "image": "/api/site/media/walk.webp"
+      }
+    ],
+    "lead": {
+      "t": "Ariza xonadonni allaqachon biladi",
+      "d": "«Narxni bilish» menejerga bino, qavat va raqam bilan keladi — mijoz nimani koʻrganini qayta soʻrash shart emas.",
+      "name": "Aziz",
+      "where": "7-blok · 9-qavat · № 40 · 2 xonali",
+      "status": "Yangi ariza",
+      "ago": "hozirgina",
+      "image": "/api/site/media/phone.webp"
+    }
+  },
+  "crm": {
+    "eyebrow": "Spliti CRM",
+    "title": "Saytni oʻzi yangilaydigan shaxmatka",
+    "lead": "Sotuv boʻlimi holat va narxlarni bir joyda yuritadi — 3D sayt oʻzgarishlarni oʻzi oladi.",
+    "items": [
+      "Binolar boʻyicha shaxmatka: qavatlar × xonadonlar, rang — holatga qarab",
+      "Holat va soʻmdagi narx — bitta xonadon, toʻplab yoki butun qavat",
+      "Tarix: kim, qachon, nima edi → nima boʻldi, izoh",
+      "Saytdan arizalar: yangi, ishda, yopilgan",
+      "Sotilgan xonadonlar narxi saytga chiqmaydi"
+    ],
+    "image": "/api/site/media/crm.webp",
+    "fig": "CRM · shaxmatka"
+  },
+  "open": {
+    "eyebrow": "Nimadan boshlaymiz",
+    "title": "Majmuangiz 3D formatda — shartnomadan oldin",
+    "text": "Birinchi versiyani ochiq manbalardan yigʻamiz va uchrashuvga uyingiz ekranda tayyor holda kelamiz.",
+    "sources": [
+      "Qurilishlar davlat reyestri",
+      "OpenStreetMap",
+      "Quruvchining sayti va katalogi"
+    ]
+  },
+  "process": {
+    "eyebrow": "Qanday ishlaymiz",
+    "title": "Chizmadan sotuvgacha toʻrt qadam",
+    "steps": [
+      {
+        "t": "Uchrashuv",
+        "d": "Ochiq maʼlumotlardan yigʻilgan majmuangizni koʻrsatamiz va tarkibni kelishib olamiz."
+      },
+      {
+        "t": "Chizmalar",
+        "d": "Qavat rejalari (DWG yoki PDF), fasadlar yoki renderlar, xonadon raqamlari bilan shaxmatka."
+      },
+      {
+        "t": "Model va sayt",
+        "d": "Devorlar, xonadonlar va qavatlarni 3D ga oʻtkazamiz, joyga bogʻlaymiz va siz bilan birga tekshiramiz."
+      },
+      {
+        "t": "Sotuv",
+        "d": "Domeningizda sayt yoki mavjud saytga vidjet, sotuv boʻlimi uchun CRM, ofis uchun ekran va shlem."
+      }
+    ]
+  },
+  "audience": {
+    "eyebrow": "Kimga",
+    "items": [
+      {
+        "t": "Quruvchiga",
+        "d": "Uy topshirilishidan oldin sotadigan sayt. Jismoniy maketsiz sotuv ofisi."
+      },
+      {
+        "t": "Sotuv boʻlimiga",
+        "d": "Sayt va menejerlar uchun yagona shaxmatka. Ariza qaysi xonadon haqida ekanini biladi."
+      },
+      {
+        "t": "Xaridorga",
+        "d": "Shartnomadan oldin derazadan haqiqiy koʻrinish va soatma-soat quyosh."
+      }
+    ]
+  },
+  "faq": {
+    "eyebrow": "Savollar",
+    "items": [
+      {
+        "q": "Bizdan nima kerak?",
+        "a": "Qavat rejalari (DWG yoki PDF), fasadlar yoki renderlar va xonadon raqamlari bilan shaxmatka. Chizmalar qanchalik aniq boʻlsa, model shunchalik aniq."
+      },
+      {
+        "q": "Xaridorga ilova oʻrnatish kerakmi?",
+        "a": "Yoʻq. Sayt telefon va kompyuter brauzerida ochiladi; VR — Meta Quest shlemi brauzerida (WebXR)."
+      },
+      {
+        "q": "Sayt qayerda joylashadi?",
+        "a": "Sizning domeningiz yoki subdomeningizda. Mavjud saytga ham joylash mumkin."
+      },
+      {
+        "q": "Narxlar koʻrsatiladimi?",
+        "a": "Agar xohlasangiz — «Reklama toʻgʻrisida»gi qonun talabiga koʻra soʻmda. «Soʻrov boʻyicha» deb ham qoldirish mumkin."
+      },
+      {
+        "q": "Qancha turadi?",
+        "a": "Binolar va qavat turlari soniga bogʻliq. Chizmalarni koʻrgach baholaymiz."
+      }
+    ]
+  },
+  "form": {
+    "eyebrow": "Bogʻlanish",
+    "title": "Majmuangizni 3D formatda koʻrsatamiz",
+    "text": "Kontaktingizni qoldiring — ochiq maʼlumotlar boʻyicha demo yigʻib, uchrashuvda koʻrsatamiz.",
+    "name": "Ismingiz",
+    "company": "Kompaniya yoki majmua",
+    "phone": "Telefon",
+    "message": "Izoh (ixtiyoriy)",
+    "send": "Yuborish",
+    "sending": "Yuborilmoqda…",
+    "privacy": "Faqat siz bilan bogʻlanish uchun ishlatamiz.",
+    "ok": "Ariza qabul qilindi. Siz bilan bogʻlanamiz.",
+    "again": "Yana yuborish",
+    "err": "Yuborib boʻlmadi. Internetni tekshirib, qayta urinib koʻring.",
+    "busy": "Urinishlar juda koʻp. Bir daqiqadan keyin urinib koʻring.",
+    "offline": "Forma hozir arizalarni qabul qilmayapti.",
+    "write": "Bizga toʻgʻridan-toʻgʻri yozing:"
+  },
+  "footer": {
+    "name": "Spliti — split, qavat kesimi, va σπίτι, yunonchada «uy».",
+    "city": "Toshkent",
+    "disc": "Rasmlar — test maʼlumotlaridagi Spliti interfeysi; uylar va atrof — ochiq maʼlumotlar (© OpenStreetMap, Shaffof qurilish davlat portali)."
+  }
+}

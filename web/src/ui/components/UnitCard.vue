@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { activeFloors, isMassing, selectedBlock, state } from '@/app/state'
+import { activeFloors, data, isLive, isMassing, selectedBlock, state } from '@/app/state'
+import { apiAsset } from '@/api/client'
 import type { Unit } from '@/domain/types'
 import { STATUS_COLOR, STATUS_LABEL, roomsLabel } from '@/domain/units'
 import { formatArea, formatDate, formatDuration, formatSum } from '@/domain/format'
@@ -14,6 +15,7 @@ const floor = computed(() => activeFloors.value.find((f) => f.n === props.unit.f
 const floorsTotal = computed(() => activeFloors.value.length)
 void isMassing
 const windowHeight = computed(() => Math.round(floor.value.elevation + 1.5))
+const aptType = computed(() => (props.unit.type_code ? data.aptTypes.value.get(props.unit.type_code) ?? null : null))
 const DAYS: Record<string, string> = { '03-21': '21 марта', '06-21': '21 июня', '12-21': '21 декабря' }
 const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state.sun.day))
 </script>
@@ -32,6 +34,10 @@ const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state
     <div class="status" :style="{ '--c': STATUS_COLOR[unit.status] }"><i />{{ STATUS_LABEL[unit.status] }}</div>
     <span v-if="unit.test" class="test">тестовые данные</span>
 
+    <figure v-if="aptType" class="plan">
+      <img :src="apiAsset(aptType.image)" :alt="`Планировка ${aptType.code}`" loading="lazy" />
+      <figcaption><b>{{ aptType.title }}</b> · тип {{ aptType.code }} · чертёж из каталога застройщика</figcaption>
+    </figure>
     <MiniPlan :unit="unit" />
 
     <div class="grid">
@@ -61,7 +67,7 @@ const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state
     <div class="price">
       <div>
         <span class="muted">Стоимость</span>
-        <b>{{ unit.price === null && unit.test ? (unit.status === 'sold' ? 'продана' : '—') : formatSum(unit.price) }}<em v-if="unit.test && unit.price !== null"> · тест</em></b>
+        <b>{{ unit.status === 'sold' ? 'продана' : unit.status === 'unavailable' ? 'не продаётся' : formatSum(unit.price) }}<em v-if="unit.test && unit.price !== null && (unit.status === 'available' || unit.status === 'booked')"> · тест</em></b>
       </div>
       <button class="btn small" @click="$emit('lead')">Узнать цену</button>
     </div>
@@ -72,7 +78,9 @@ const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state
         Пройти по квартире
       </button>
     </div>
-    <p v-if="unit.test" class="src">Тестовые данные для показа возможностей: планировка сгенерирована по реальному контуру корпуса, статус и цена случайные.</p>
+    <p v-if="unit.test && aptType" class="src">Планировка и площади комнат — каталог застройщика; расстановка квартир на этаже условная. Статус и цена — тестовая стартовая шахматка<template v-if="isLive">, дальше их ведёт CRM</template>.</p>
+    <p v-else-if="unit.test" class="src">Тестовые данные для показа возможностей: планировка сгенерирована по реальному контуру корпуса, статус и цена случайные.</p>
+    <p v-else-if="isLive" class="src">Статус и цена — из CRM отдела продаж, обновляются на странице автоматически.</p>
     <p v-else class="src">Статус — каталог застройщика на {{ formatDate(unit.observed_at) }}. Площадь по каталогу, стены — по плану этажа.</p>
   </div>
 </template>
@@ -83,6 +91,10 @@ h2 { font-size: 20px; margin: 6px 0 0; letter-spacing: -0.01em; font-weight: 800
 .status { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 12px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
 .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
 .test { display: inline-block; margin-left: 8px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; color: #1a120b; background: var(--warn); }
+.plan { margin: 0 0 10px; padding: 8px; border-radius: 12px; background: #fff; }
+.plan img { display: block; width: 100%; max-height: 220px; object-fit: contain; }
+.plan figcaption { margin-top: 6px; font-size: 11px; color: #5b5f66; }
+.plan figcaption b { color: #1d2026; }
 .rooms ul { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
 .rooms li { display: flex; justify-content: space-between; color: var(--muted); }
 .rooms li b { color: var(--text); }

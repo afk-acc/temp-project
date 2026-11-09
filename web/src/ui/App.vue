@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '@/api/client'
-import { activeAzimuth, activeFloors, activeLayout, activeType, data, floorStats, isMassing, scopeUnits, selectedBlock, selectedUnit, state } from '@/app/state'
+import { activeAzimuth, activeFloors, activeLayout, activeType, data, floorStats, isLive, isMassing, scopeUnits, selectedBlock, selectedUnit, state } from '@/app/state'
 import type { FloorType } from '@/domain/types'
 import { summarizeView, unitFacades, type Facade } from '@/domain/views'
 import { Engine } from '@/scene/Engine'
@@ -50,7 +50,7 @@ onMounted(async () => {
     data.projects.value = index.items
     if (!index.items.some((p) => p.slug === SLUG)) SLUG = index.items[0].slug
     const [project, units, context] = await Promise.all([api.project(SLUG), api.units(SLUG), api.context(SLUG)])
-    document.title = `ЖК ${project.name} — 3D-демо`
+    document.title = `ЖК ${project.name} — 3D · Spliti`
     state.progress = 0.35
     const ids = [...new Set(project.building.floors.map((f) => f.type))]
     const types = new Map<string, FloorType>()
@@ -65,6 +65,10 @@ onMounted(async () => {
     data.context.value = context
     data.types.value = types
     data.observedAt.value = units.observed_at
+    // реальные планировки (чертёж и комнаты из каталога) — только у ЖК, где квартиры ссылаются на тип
+    if (units.items.some((u) => u.type_code)) {
+      api.apartmentTypes(SLUG).then((r) => (data.aptTypes.value = new Map(r.items.map((t) => [t.code, t])))).catch(() => {})
+    }
     engine.load(project, context, types)
     if (import.meta.env.DEV) (window as unknown as { __engine: Engine }).__engine = engine
     engine.setSun(state.sun.day, state.sun.hour)
@@ -76,12 +80,44 @@ onMounted(async () => {
     state.error = e instanceof Error ? e.message : String(e)
   }
   window.addEventListener('keydown', onKey)
+  liveTimer = window.setInterval(() => void refreshUnits(), LIVE_MS)
+  document.addEventListener('visibilitychange', onVisible)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
+  clearInterval(liveTimer)
+  document.removeEventListener('visibilitychange', onVisible)
   engine?.dispose()
 })
+
+// ---------- живые статусы: CRM — источник правды, сайт перечитывает квартиры ----------
+
+const LIVE_MS = 20000
+let liveTimer = 0
+let refreshing = false
+
+async function refreshUnits() {
+  if (!isLive.value || refreshing || document.hidden || state.loading) return
+  refreshing = true
+  try {
+    const fresh = (await api.units(SLUG)).items
+    const old = new Map(data.units.value.map((u) => [u.id, u]))
+    const changed = fresh.some((u) => {
+      const o = old.get(u.id)
+      return !o || o.status !== u.status || o.price !== u.price
+    })
+    if (!changed) return
+    data.units.value = fresh
+    engine?.updateUnits(scopeUnits.value, state.filter, state.hoverUnit, state.unitId)
+  } catch { /* сеть моргнула — попробуем в следующий раз */ } finally {
+    refreshing = false
+  }
+}
+
+function onVisible() {
+  if (!document.hidden) void refreshUnits()
+}
 
 // ---------- действия ----------
 
@@ -354,8 +390,6 @@ const floorCount = computed(() => floorStats.value.length)
   padding: 10px 16px; font-size: 13px; color: var(--muted); pointer-events: none; white-space: nowrap;
 }
 @media (max-width: 760px) {
-  .view-hud { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 14px 8px 8px; font-size: 13px; white-space: nowrap; }
-@media (max-width: 760px) { .view-hud { top: 66px; left: 10px; right: 10px; transform: none; } .view-hud .muted { display: none; } }
-.hint { bottom: auto; top: 76px; font-size: 12px; white-space: normal; width: calc(100% - 32px); text-align: center; }
+  .hint { bottom: auto; top: 76px; font-size: 12px; white-space: normal; width: calc(100% - 32px); text-align: center; }
 }
 </style>

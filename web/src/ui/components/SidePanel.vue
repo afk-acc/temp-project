@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { activeFloors, activeType, data, isMassing, isTestData, scopeUnits, selectedBlock, selectedUnit, state, totals } from '@/app/state'
+import { activeFloors, activeType, data, isLive, isMassing, isTestData, scopeUnits, selectedBlock, selectedUnit, state, totals } from '@/app/state'
 import { STATUS_COLOR, STATUS_LABEL, matchesFilter } from '@/domain/units'
 import { formatArea, formatDate, plural } from '@/domain/format'
 import type { ViewSummary } from '@/domain/views'
@@ -40,7 +40,7 @@ const floorLabel = computed(() => {
 
     <template v-else>
       <div class="eyebrow">{{ state.floor === null ? 'Квартиры в доме' : `${isMassing && selectedBlock ? selectedBlock.label + ' · ' : ''}${state.floor} этаж` }}</div>
-      <div v-if="isTestData" class="test-chip">Тестовые данные: планировки, статусы и цены условные</div>
+      <div v-if="isTestData" class="test-chip">{{ data.aptTypes.value.size ? 'Тестовые статусы и цены; планировки — из каталога застройщика' : 'Тестовые данные: планировки, статусы и цены условные' }}</div>
       <template v-if="state.floor === null">
         <div class="big num">{{ totals.by.available }} <span>{{ plural(totals.by.available, 'квартира', 'квартиры', 'квартир') }} в продаже</span></div>
         <div class="bar">
@@ -50,7 +50,8 @@ const floorLabel = computed(() => {
         <div class="stats">
           <div v-for="s in (['available','booked','sold'] as const)" :key="s"><i :style="{ background: STATUS_COLOR[s] }" />{{ STATUS_LABEL[s] }} <b class="num">{{ totals.by[s] }}</b></div>
         </div>
-        <p class="note">Всего {{ totals.total }} квартир в каталоге застройщика. Статусы на {{ formatDate(data.observedAt.value) }}.</p>
+        <p v-if="isLive" class="note">Всего {{ totals.total }} квартир. Статусы ведёт отдел продаж в CRM, страница обновляет их сама.</p>
+        <p v-else class="note">Всего {{ totals.total }} квартир в каталоге застройщика. Статусы на {{ formatDate(data.observedAt.value) }}.</p>
       </template>
       <template v-else>
         <div class="floor-sub muted">{{ floorLabel }}</div>

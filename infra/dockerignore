@@ -1,0 +1,13 @@
+# копируется в /home/projects/spliti/.dockerignore — в образ идёт только backend/ и infra/php/
+*
+!backend/
+!infra/php/
+backend/vendor
+backend/node_modules
+backend/.env
+backend/.env.*
+backend/database/*.sqlite
+backend/storage/app/*
+backend/storage/logs/*
+backend/storage/framework/*/*
+backend/tests

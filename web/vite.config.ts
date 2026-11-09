@@ -1,50 +1,32 @@
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { readFile } from 'node:fs/promises'
-import { resolve, normalize, dirname } from 'node:path'
+import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/**
- * На этапе 0 бэкенд заменяет каталог ../api-stub: запрос GET /api/projects/c1 → api-stub/projects/c1.json.
- * Фронт не знает, откуда данные: на этапе 2 тот же контракт отдаёт Laravel, а этот плагин уходит.
- */
-function apiStub(): Plugin {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../api-stub')
-  const handler = async (req: any, res: any, next: () => void) => {
-    if (!req.url?.startsWith('/api/')) return next()
-    const path = normalize(req.url.split('?')[0].replace(/^\/api\//, '')).replace(/^(\.\.(\/|\\|$))+/, '')
-    // логотипы брендов — файлы как есть; всё остальное — JSON-ответы
-    const media = path.match(/^brands\/[a-z0-9-]+\.(svg|png)$/)
-    try {
-      if (media) {
-        const body = await readFile(resolve(root, path))
-        res.setHeader('Content-Type', media[1] === 'svg' ? 'image/svg+xml' : 'image/png')
-        res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
-        res.setHeader('Cache-Control', 'public, max-age=3600')
-        res.end(body)
-        return
-      }
-      const body = await readFile(resolve(root, `${path}.json`))
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.setHeader('Cache-Control', 'no-store')
-      res.end(body)
-    } catch {
-      res.statusCode = 404
-      res.setHeader('Content-Type', 'application/json; charset=utf-8')
-      res.end(JSON.stringify({ message: 'Not found' }))
-    }
-  }
-  return {
-    name: 'api-stub',
-    configureServer: (server) => { server.middlewares.use(handler) },
-    configurePreviewServer: (server) => { server.middlewares.use(handler) },
-  }
-}
+// Все данные — только из бэкенда: /api и /sanctum проксируются в Laravel (php artisan serve --port=8010).
+// Другой адрес бэкенда: BACKEND_URL=http://… npm run dev
+const BACKEND = process.env.BACKEND_URL || 'http://localhost:8010'
+const proxy = { '/api': { target: BACKEND, changeOrigin: false }, '/sanctum': { target: BACKEND, changeOrigin: false } }
+const here = dirname(fileURLToPath(import.meta.url))
+// три страницы, адреса одинаковы локально и на spliti.uz: / — сайт Spliti, /demo/ — 3D-сайт ЖК, /crm/ — CRM.
+// ONLY=main — собрать только 3D (статическая выкладка демо без бэкенда)
+const ENTRIES: Record<string, string> = { site: 'index.html', main: 'demo/index.html', crm: 'crm/index.html' }
+const ONLY = process.env.ONLY?.split(',')
+const input = Object.fromEntries(Object.entries(ENTRIES).filter(([k]) => !ONLY || ONLY.includes(k)).map(([k, f]) => [k, resolve(here, f)]))
 
 export default defineConfig({
-  plugins: [vue(), apiStub()],
-  resolve: { alias: { '@': resolve(dirname(fileURLToPath(import.meta.url)), 'src') } },
-  server: { host: true, port: 5180 },
-  preview: { host: true, port: 5181 },
-  build: { target: 'es2020', chunkSizeWarningLimit: 900 },
+  plugins: [vue()],
+  resolve: { alias: { '@': resolve(here, 'src') } },
+  server: {
+    host: true,
+    port: 5180,
+    strictPort: true,
+    proxy,
+  },
+  preview: { host: true, port: 5181, proxy },
+  build: {
+    target: 'es2020',
+    chunkSizeWarningLimit: 900,
+    rollupOptions: { input },
+  },
 })

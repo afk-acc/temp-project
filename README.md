@@ -1,30 +1,99 @@
-# 3D-демо ЖК для встреч с застройщиками: C1 и NRG Mirzo Ulugbek
+# 3D-демо ЖК для встреч с застройщиками: Harizma (+ CRM), C1 и NRG Mirzo Ulugbek
 
 Интерактивный 3D-макет реального строящегося дома, собранный **только из открытых данных** и без ручного 3D-моделирования:
 дом на своём месте → этаж в разрезе → квартира со статусом → прогулка внутри → VR.
 
-> ⚠️ **Не публиковать.** Поэтажные планы и статусы квартир — данные застройщика (mbc.uz).
-> Демо показывается локально с ноутбука. Выкладка по ссылке — только с согласия застройщика или за паролем.
+> ⚠️ **Не публиковать C1 и Harizma.** Поэтажные планы и статусы C1 — данные Murad Buildings (mbc.uz); планировки Harizma —
+> каталог Golden House. Демо показывается локально с ноутбука. Выкладка по ссылке — только с согласия застройщика или за паролем.
+> По ссылке выложен только NRG (см. конец файла).
 
 ## Запуск
+
+Все данные хранятся в бэкенде (Laravel, `backend/`, база SQLite) — фронт ничего не хранит и читает только API.
+Два терминала:
+
+```bash
+cd backend && php artisan serve --port=8010
+```
 
 ```bash
 cd web && npm install && npm run dev
 ```
 
-Откроется на http://localhost:5180 — ЖК C1. Второй ЖК: http://localhost:5180/?p=nrg-mirzo-ulugbek
-(или переключатель справа вверху). Чтобы показать на телефоне в той же Wi-Fi-сети, откройте на нём адрес,
-который Vite печатает в строке `Network:`.
+- 3D-сайт ЖК: http://localhost:5180 (Harizma), `?p=c1`, `?p=nrg-mirzo-ulugbek` — или переключатель справа вверху
+- CRM: http://localhost:5180/crm.html
+- Сайт Spliti: http://localhost:5180/site.html (`?lang=uz`)
 
-Пересобрать данные (после изменения скриптов или новых снимков):
+Vite проксирует `/api` и `/sanctum` в бэкенд (другой адрес — `BACKEND_URL=… npm run dev`). В приложении Claude это конфигурации
+`zhk-crm-api` и `zhk-web`. Чтобы показать на телефоне в той же Wi-Fi-сети, откройте адрес из строки `Network:` Vite.
+
+**Где какие данные:**
+
+| Что | Где хранится | Как менять |
+|---|---|---|
+| ЖК: карточка, корпуса, этажи, геометрия, окружение, места рядом | база (`projects`, `block_layouts`, `floor_types`, `apartment_types`) + хранилище `media/` | пересобрать конвейером → `php artisan zhk:import <slug>` |
+| Квартиры, статусы, цены, история | база (`units`, `unit_status_changes`) | CRM |
+| Заявки покупателей / обращения застройщиков | база (`leads` / `inquiries`) | CRM / `php artisan spliti:inquiries` |
+| Тексты, картинки сайта Spliti (RU/UZ) | база (`site_contents`) + `media/site/` | стартовые — `backend/resources/site/`, `php artisan spliti:site-import [--force]` |
+| Контакты сайта, ссылка на демо | база (`site_settings`) | `php artisan spliti:site-set contacts.telegram spliti_uz` (без аргументов — показать) |
+
+Пересобрать данные ЖК (после изменения скриптов или новых снимков) — конвейер пишет пакет для импорта в `data-build/`:
 
 ```bash
 python3 -I tools/register.py     # совмещение планов этажей по лифтовому ядру → data-src/registration.json
-python3 -I tools/build_api.py    # снимки → api-stub/ (≈30 с)
+python3 -I tools/build_api.py    # C1: снимки → data-build/ (≈30 с)
 python3 -I tools/build_massing.py   # NRG Mirzo Ulugbek: корпуса, места рядом, тестовые планировки и шахматка
+cd backend && php artisan zhk:import c1 nrg-mirzo-ulugbek     # в базу; статусы из CRM сохраняются
 ```
 
-## Два режима
+## Spliti — бренд и сайт (с 09.11.2026)
+
+Продукт называется **Spliti** (split — разрез этажа + σπίτι — «дом»). Логотип собирается из геометрии: `python3 -I tools/brand.py`
+→ `brand/*.svg` (знак, надпись, светлый/тёмный варианты, фавикон, превью `brand/sheet.html`) и `web/src/brand/geometry.ts` для Vue-компонентов
+`SplitiMark` / `SplitiLogo`. Сайт Spliti — `web/site.html` (RU/UZ, `?lang=uz`): http://localhost:5180/site.html. Тексты, картинки и контакты приходят
+из бэкенда (`GET /api/site`), форма пишет в `POST /api/inquiries` (обращения: `cd backend && php artisan spliti:inquiries`).
+План и что осталось за владельцем: [plans/2026-11-09-plan-02-spliti-brand-site.md](plans/2026-11-09-plan-02-spliti-brand-site.md).
+
+## Harizma + CRM (с 09.11.2026): 3D-сайт с живыми статусами
+
+ЖК **Harizma** (Golden House, Яшнабад, ул. Султанали Машхадий, 210). Здесь 3D-сайт берёт данные не из файлов, а из
+**CRM** (`backend/`, Laravel 13): менеджер меняет статус и цену квартиры, сайт показывает это через ~20 секунд без перезагрузки;
+заявка «Узнать цену» с сайта приходит в CRM с номером квартиры и этажом.
+
+Запуск — как в разделе «Запуск» выше: 3D http://localhost:5180/?p=harizma, CRM http://localhost:5180/crm.html.
+Вход менеджера: пароль задаётся/сбрасывается командой
+`cd backend && php artisan zhk:admin admin@harizma.local --name="Менеджер продаж"` (без `--password` — сгенерирует и покажет).
+
+**Первый запуск бэкенда с нуля:**
+
+```bash
+cd backend && composer install && cp .env.example .env && php artisan key:generate
+touch database/database.sqlite && php artisan migrate --seed   # сид — только контент сайта Spliti
+php artisan zhk:import harizma c1 nrg-mirzo-ulugbek     # из data-build; повторный импорт статусы CRM не трогает
+php artisan zhk:admin admin@harizma.local --name="Менеджер продаж"
+```
+
+`--reset-statuses` у импорта возвращает тестовую стартовую шахматку (затирает статусы и цены из CRM — только для демо).
+
+**Что в CRM:** сводка (в продаже / бронь / продано / снято, предложение в сумах, новые заявки) → шахматка корпуса
+(этажи × квартиры, цвет по статусу, фильтр) → карточка квартиры (чертёж типа, статус, цена, комментарий, история «кто, когда,
+было → стало») → смена статуса пачкой (Shift-клик, «Выбрать несколько» или номер этажа — весь этаж) → заявки с сайта
+(новая / в работе / закрыта) → лента изменений. Цена проданных квартир на сайт не уходит — остаётся в CRM.
+
+**Откуда данные Harizma и что условно:**
+
+| Что | Откуда | Условно |
+|---|---|---|
+| Корпуса | 9 контуров секций OSM на участке | этажность 16/12 — по госреестру (объект 976), какая секция какой высоты — условно; в OSM 9 из 17 корпусов, дома 5 и 8 третьего этапа не показаны |
+| Планировки | 8 реальных типов из каталога Golden House 2025 (стр. 36–37): чертёж в карточке, площади комнат, стены для прогулки извлечены из чертежа | масштаб чертежа подобран по площади; **расстановка квартир на этаже условная** — поэтажных планов застройщик не публикует |
+| Статусы и цены | стартовая шахматка 753 квартиры — **тестовая** (жёлтая плашка) | дальше ведутся в CRM; ~15,4 млн сум/м² — не цена застройщика |
+| Фасад | палитра по рендерам с gh.uz | сетка окон стилизована |
+| Окружение и места рядом | OSM + логотипы брендов | — |
+
+Пересобрать данные Harizma: `python3 -I tools/apartment_types.py && python3 -I tools/build_harizma.py`, затем `php artisan zhk:import harizma`.
+План работ: [plans/2026-11-09-plan-01-harizma-crm.md](plans/2026-11-09-plan-01-harizma-crm.md).
+
+## Два режима (C1 и NRG)
 
 | | ЖК C1 (Murad Buildings) | ЖК NRG Mirzo Ulugbek (NRG / BI Group) |
 |---|---|---|
@@ -71,10 +140,13 @@ Yaponamama, Baraka, TOK BOR, UzbekNefteGaz, KFC, Intersport, Audi, BMW, Chevrole
 ## Как устроено
 
 ```
+backend/    Laravel 13 (модульный монолит): Catalog (ЖК, корпуса, типы, квартиры, импорт), Sales (статусы, цены, история),
+            Leads (заявки), Identity (вход менеджера — сессия Sanctum), Inquiries (обращения с сайта Spliti);
+            SQLite для демо, тесты: php artisan test
 data-src/   снимки источников на 04.11.2026 (см. SOURCES.md) — НЕ публиковать
 tools/      planlib.py (растровая морфология без OpenCV), register.py (совмещение этажей), extract_floorplan.py (план → геометрия), build_api.py
-api-stub/   API-контракт (CONTRACT.md) в виде JSON — временная замена бэкенда
-web/        Vite + Vue 3 + TypeScript + three.js
+data-build/ пакет для импорта в бэкенд, который пишет конвейер (tools/); фронт его не читает. Контракт API — backend/docs/public-api.md
+web/        Vite + Vue 3 + TypeScript + three.js; три точки входа: index.html (3D), crm.html (CRM, только с бэкендом), site.html (сайт Spliti)
   src/domain  типы, статусы, суммы, солнце, стороны света, вид из окон
   src/api     клиент /api
   src/scene   движок: окружение, здание, разрез, прогулка, VR
@@ -95,10 +167,12 @@ web/        Vite + Vue 3 + TypeScript + three.js
 ## Выкладка на сервер: https://lab.edu-start.org/nrg-bi/
 
 Выложен **только ЖК NRG Mirzo Ulugbek** (C1 — планы Murad Buildings, без согласия застройщика не публикуется).
-Статика отдаётся общим Nginx Proxy Manager, отдельного контейнера нет.
+Статика отдаётся общим Nginx Proxy Manager, отдельного контейнера нет. Данные в пакете — выгрузка из базы бэкенда
+(`php artisan zhk:export`, его вызывает `pack_deploy.py`): статусы и цены — как в CRM на момент выгрузки; на статике заявки не принимаются.
+Сейчас на сервере ещё версия от 05.11 (из файлов конвейера); при следующей выкладке она заменится выгрузкой из базы.
 
 ```bash
-(cd web && npx vite build --base /nrg-bi/ --outDir ../deploy/nrg-bi --emptyOutDir)
+(cd web && ONLY=main npx vite build --base /nrg-bi/ --outDir ../deploy/nrg-bi --emptyOutDir)
 python3 -I tools/pack_deploy.py deploy/nrg-bi nrg-mirzo-ulugbek
 rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r deploy/nrg-bi/ edu_start:/opt/proxy/data/static/nrg-bi/
 ```

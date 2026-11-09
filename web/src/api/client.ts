@@ -1,22 +1,15 @@
-import type { BlockLayout, Context, FloorType, Project, ProjectIndexItem, UnitsResponse } from '@/domain/types'
+import type { ApartmentType, BlockLayout, Context, FloorType, Project, ProjectIndexItem, UnitsResponse } from '@/domain/types'
+import { BASE, get, send } from './http'
 
 /**
- * Клиент API. Базовый адрес — /api: на этапе 0 его отдаёт заглушка (api-stub), дальше — Laravel.
+ * Клиент публичного API 3D-сайта. Данные отдаёт только бэкенд (Laravel); на статической выкладке — его выгрузка (zhk:export).
  * Типы этажей кешируются в памяти на время сессии: геометрия неизменна, это не хранение данных.
  */
-// База API от адреса приложения: в разработке /api, на сервере /nrg-bi/api.
-// Статическая выкладка отдаёт ответы файлами <путь>.json (nginx: try_files $uri $uri.json).
-const BASE = `${import.meta.env.BASE_URL}api`
+export { ApiError } from './http'
 
-/** Ссылки на файлы API в данных (например, логотипы /api/brands/...) — под текущую базу */
+/** Ссылки на файлы API в данных (логотипы /api/brands/..., чертежи /api/projects/...) — под текущую базу */
 export function apiAsset(path: string): string {
   return path.startsWith('/api/') ? `${BASE}${path.slice(4)}` : path
-}
-
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`API ${path}: ${res.status}`)
-  return (await res.json()) as T
 }
 
 const floorTypeCache = new Map<string, Promise<FloorType>>()
@@ -27,9 +20,12 @@ export const api = {
   units: (slug: string) => get<UnitsResponse>(`/projects/${slug}/units`),
   context: (slug: string) => get<Context>(`/projects/${slug}/context`),
   block: (slug: string, id: string) => get<BlockLayout>(`/projects/${slug}/blocks/${id}`),
+  apartmentTypes: (slug: string) => get<{ items: ApartmentType[] }>(`/projects/${slug}/apartment-types`),
   floorType(slug: string, id: string): Promise<FloorType> {
     const key = `${slug}/${id}`
     if (!floorTypeCache.has(key)) floorTypeCache.set(key, get<FloorType>(`/projects/${slug}/floor-types/${id}`))
     return floorTypeCache.get(key)!
   },
+  lead: (body: { project: string; unit_id?: number | null; name: string; phone: string; comment?: string }) =>
+    send<{ id: number; status: string }>('POST', '/leads', body),
 }

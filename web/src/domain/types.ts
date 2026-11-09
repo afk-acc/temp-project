@@ -1,4 +1,4 @@
-/** Типы API-контракта (api-stub/CONTRACT.md). Фронт ничего не хранит — только представляет эти ответы. */
+/** Типы API-контракта (backend/docs/public-api.md). Фронт ничего не хранит — только представляет эти ответы. */
 
 export type Rect = [number, number, number, number] // x0, y0, x1, y1 — метры в системе плана
 /** x0, y0, x1, y1, nx, ny — отрезок периметра и нормаль наружу */
@@ -20,8 +20,23 @@ export interface Unit {
   observed_at: string
   source: string
   block?: string
+  type_code?: string | null
   test?: boolean
   room_list?: { name: string; area: number }[]
+}
+
+/** Реальная планировка квартиры из каталога застройщика */
+export interface ApartmentType {
+  code: string
+  title: string
+  rooms: number
+  area: number
+  room_list: { name: string; area: number }[]
+  image: string
+  width: number
+  depth: number
+  facade: string
+  source: string
 }
 
 /** Тестовая планировка корпуса (ЖК без планов застройщика): этажи и типы этажей в системе плана корпуса */
@@ -96,6 +111,7 @@ export interface Building {
   blocks?: Block[]
   center?: Point
   floors_total?: number
+  palette?: { stone?: string; band?: string; glass?: string }
   azimuth_deg: number
   slab: number
   crown_height: number
@@ -129,6 +145,8 @@ export interface Project {
   sources: { what: string; source: string; date: string }[]
   assumptions: string[]
   disclaimer: string
+  /** «Как собран макет»: источники по шагам, для окна «О данных» */
+  about?: { title: string; text: string }[]
 }
 
 export interface ContextBuilding { p: Point[]; h: number; g: boolean; name?: string | null }
