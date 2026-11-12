@@ -8,6 +8,8 @@
     "crm": "CRM",
     "process": "Qanday ishlaymiz",
     "faq": "Savollar",
+    "login": "Kirish",
+    "loginHint": "Sotuv boʻlimi uchun CRMga kirish",
     "cta": "Loyihani muhokama qilish"
   },
   "hero": {

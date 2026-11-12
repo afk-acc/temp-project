@@ -76,7 +76,9 @@ final class ImportProject
     public function importBrands(string $root): int
     {
         $count = 0;
-        foreach (glob(rtrim($root, '/').'/brands/*.{svg,png}', GLOB_BRACE) ?: [] as $f) {
+        // без GLOB_BRACE: на Alpine (musl) такой константы нет
+        $logos = preg_grep('/\.(svg|png)$/', glob(rtrim($root, '/').'/brands/*') ?: []);
+        foreach ($logos as $f) {
             Storage::disk('local')->put('media/brands/'.basename($f), file_get_contents($f));
             $count++;
         }

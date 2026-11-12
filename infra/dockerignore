@@ -10,4 +10,5 @@ backend/database/*.sqlite
 backend/storage/app/*
 backend/storage/logs/*
 backend/storage/framework/*/*
+backend/bootstrap/cache/*.php
 backend/tests

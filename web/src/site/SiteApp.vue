@@ -11,6 +11,7 @@ import { vReveal } from './reveal'
 const scrolled = ref(false)
 const onScroll = () => (scrolled.value = window.scrollY > 12)
 const demoUrl = computed(() => site.value?.demo_url || './')
+const crmUrl = computed(() => site.value?.crm_url || null)
 onMounted(() => {
   void load()
   window.addEventListener('scroll', onScroll, { passive: true })
@@ -40,6 +41,10 @@ const year = new Date().getFullYear()
         <div v-if="site.langs.length > 1" class="lang mono" role="group" aria-label="Язык / Til">
           <button v-for="l in site.langs" :key="l" :class="{ on: lang === l }" @click="setLang(l)">{{ l.toUpperCase() }}</button>
         </div>
+        <a v-if="crmUrl" :href="crmUrl" class="login" :title="t.nav.loginHint" :aria-label="t.nav.loginHint">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" /><path d="M4 12h10M10.5 8.5 14 12l-3.5 3.5" /></svg>
+          <span>{{ t.nav.login }}</span>
+        </a>
         <a href="#contact" class="btn small">{{ t.nav.cta }}</a>
       </div>
     </div>

@@ -7,13 +7,15 @@ COPY backend/ ./
 RUN composer dump-autoload --no-dev --optimize --no-scripts
 
 FROM php:8.4-fpm-alpine
-RUN docker-php-ext-install opcache
+# opcache.so уже есть в официальном образе: включаем без компиляции и без apk
+# (apk внутри сборки на edu_start зависал на скачивании пакетов).
+RUN docker-php-ext-enable opcache && php -m | grep -q 'Zend OPcache'
 COPY infra/php/php.ini /usr/local/etc/php/conf.d/zz-spliti.ini
 COPY infra/php/fpm.conf /usr/local/etc/php-fpm.d/zz-spliti.conf
 COPY infra/php/entrypoint.sh /usr/local/bin/spliti-entrypoint
 WORKDIR /var/www/html
 COPY --from=vendor /app ./
-RUN rm -rf tests .env .env.* database/*.sqlite storage/app/* storage/logs/* \
+RUN rm -rf tests .env .env.* database/*.sqlite storage/app/* storage/logs/* bootstrap/cache/*.php \
  && mkdir -p database/data storage/app storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
  && php artisan package:discover --ansi \
  && chown -R www-data:www-data storage bootstrap/cache database/data \

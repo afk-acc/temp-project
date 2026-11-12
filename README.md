@@ -5,7 +5,7 @@
 
 > ⚠️ **Не публиковать C1 и Harizma.** Поэтажные планы и статусы C1 — данные Murad Buildings (mbc.uz); планировки Harizma —
 > каталог Golden House. Демо показывается локально с ноутбука. Выкладка по ссылке — только с согласия застройщика или за паролем.
-> По ссылке выложен только NRG (см. конец файла).
+> По ссылке выложен только NRG: https://spliti.uz/demo/ и старая статика на lab.edu-start.org/nrg-bi/ (см. конец файла).
 
 ## Запуск
 
@@ -20,9 +20,11 @@ cd backend && php artisan serve --port=8010
 cd web && npm install && npm run dev
 ```
 
-- 3D-сайт ЖК: http://localhost:5180 (Harizma), `?p=c1`, `?p=nrg-mirzo-ulugbek` — или переключатель справа вверху
-- CRM: http://localhost:5180/crm.html
-- Сайт Spliti: http://localhost:5180/site.html (`?lang=uz`)
+- Сайт Spliti: http://localhost:5180/ (`?lang=uz`)
+- 3D-сайт ЖК: http://localhost:5180/demo/ (Harizma), `?p=c1`, `?p=nrg-mirzo-ulugbek` — или переключатель справа вверху
+- CRM: http://localhost:5180/crm/
+
+Адреса страниц те же, что на https://spliti.uz (см. «Выкладка: spliti.uz»).
 
 Vite проксирует `/api` и `/sanctum` в бэкенд (другой адрес — `BACKEND_URL=… npm run dev`). В приложении Claude это конфигурации
 `zhk-crm-api` и `zhk-web`. Чтобы показать на телефоне в той же Wi-Fi-сети, откройте адрес из строки `Network:` Vite.
@@ -50,7 +52,7 @@ cd backend && php artisan zhk:import c1 nrg-mirzo-ulugbek     # в базу; с�
 
 Продукт называется **Spliti** (split — разрез этажа + σπίτι — «дом»). Логотип собирается из геометрии: `python3 -I tools/brand.py`
 → `brand/*.svg` (знак, надпись, светлый/тёмный варианты, фавикон, превью `brand/sheet.html`) и `web/src/brand/geometry.ts` для Vue-компонентов
-`SplitiMark` / `SplitiLogo`. Сайт Spliti — `web/site.html` (RU/UZ, `?lang=uz`): http://localhost:5180/site.html. Тексты, картинки и контакты приходят
+`SplitiMark` / `SplitiLogo`. Сайт Spliti — `web/index.html` (RU/UZ, `?lang=uz`): http://localhost:5180/. Тексты, картинки и контакты приходят
 из бэкенда (`GET /api/site`), форма пишет в `POST /api/inquiries` (обращения: `cd backend && php artisan spliti:inquiries`).
 План и что осталось за владельцем: [plans/2026-11-09-plan-02-spliti-brand-site.md](plans/2026-11-09-plan-02-spliti-brand-site.md).
 
@@ -60,7 +62,7 @@ cd backend && php artisan zhk:import c1 nrg-mirzo-ulugbek     # в базу; с�
 **CRM** (`backend/`, Laravel 13): менеджер меняет статус и цену квартиры, сайт показывает это через ~20 секунд без перезагрузки;
 заявка «Узнать цену» с сайта приходит в CRM с номером квартиры и этажом.
 
-Запуск — как в разделе «Запуск» выше: 3D http://localhost:5180/?p=harizma, CRM http://localhost:5180/crm.html.
+Запуск — как в разделе «Запуск» выше: 3D http://localhost:5180/demo/?p=harizma, CRM http://localhost:5180/crm/.
 Вход менеджера: пароль задаётся/сбрасывается командой
 `cd backend && php artisan zhk:admin admin@harizma.local --name="Менеджер продаж"` (без `--password` — сгенерирует и покажет).
 
@@ -146,7 +148,7 @@ backend/    Laravel 13 (модульный монолит): Catalog (ЖК, ко�
 data-src/   снимки источников на 04.11.2026 (см. SOURCES.md) — НЕ публиковать
 tools/      planlib.py (растровая морфология без OpenCV), register.py (совмещение этажей), extract_floorplan.py (план → геометрия), build_api.py
 data-build/ пакет для импорта в бэкенд, который пишет конвейер (tools/); фронт его не читает. Контракт API — backend/docs/public-api.md
-web/        Vite + Vue 3 + TypeScript + three.js; три точки входа: index.html (3D), crm.html (CRM, только с бэкендом), site.html (сайт Spliti)
+web/        Vite + Vue 3 + TypeScript + three.js; три точки входа: index.html (сайт Spliti, /), demo/index.html (3D, /demo/), crm/index.html (CRM, /crm/)
   src/domain  типы, статусы, суммы, солнце, стороны света, вид из окон
   src/api     клиент /api
   src/scene   движок: окружение, здание, разрез, прогулка, VR
@@ -163,6 +165,31 @@ web/        Vite + Vue 3 + TypeScript + three.js; три точки входа: 
 
 План и статус работ: [plans/2026-11-04-plan-00-demo.md](plans/2026-11-04-plan-00-demo.md).
 Бизнес-разбор: [../reports/3D-макет и VR для новостроек Узбекистана.md](../reports/3D-макет%20и%20VR%20для%20новостроек%20Узбекистана.md).
+
+## Выкладка: https://spliti.uz (с 10.11.2026)
+
+Сайт Spliti, 3D-демо и CRM с бэкендом — на сервере edu_start, отдельный docker-проект `spliti` (`infra/`).
+Публикуется **только ЖК NRG Mirzo Ulugbek**: deploy.sh копирует на сервер пакет только этого ЖК, в базе прода C1 и Harizma нет.
+
+| Адрес | Что |
+|---|---|
+| https://spliti.uz/ | сайт (RU/UZ), форма обращений |
+| https://spliti.uz/demo/ | 3D-демо NRG (noindex) |
+| https://spliti.uz/crm/ | CRM менеджера (noindex) |
+
+```bash
+./infra/deploy.sh          # код + фронт; данные в базе не трогаются
+./infra/deploy.sh --init   # + стартовый контент сайта (правки в базе не затирает) и импорт NRG
+```
+
+- На сервере: `/home/projects/spliti` (`backend/`, `infra/`, `web/`, `import/`, `data/db` — SQLite, `data/storage` — картинки).
+  Секреты — `infra/.env.app` (создаётся при первой выкладке, в rsync не входит).
+- Контейнеры `app` (php-fpm) + `gateway` (nginx) на `172.17.0.1:18095`; наружу — через Nginx Proxy Manager
+  (proxy host `spliti.uz`, `www.spliti.uz` → `http://172.17.0.1:18095`, Let's Encrypt). `www` шлюз перенаправляет на `spliti.uz`.
+- Команды artisan на сервере: `cd /home/projects/spliti/infra && docker compose exec -u www-data app php artisan <команда>`
+  (например `spliti:inquiries`, `spliti:site-set`, `zhk:admin`).
+- Watchdog: `/opt/ops/stacks.d/60-spliti.conf`.
+- План и грабли выкладки: [plans/2026-11-10-plan-04-deploy-spliti-uz.md](plans/2026-11-10-plan-04-deploy-spliti-uz.md).
 
 ## Выкладка на сервер: https://lab.edu-start.org/nrg-bi/
 

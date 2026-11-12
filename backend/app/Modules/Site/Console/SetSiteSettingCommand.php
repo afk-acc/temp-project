@@ -15,11 +15,11 @@ use Illuminate\Support\Arr;
  */
 class SetSiteSettingCommand extends Command
 {
-    protected $signature = 'spliti:site-set {key? : contacts.telegram | contacts.phone | contacts.email | demo_url} {value? : новое значение; пустая строка — убрать}';
+    protected $signature = 'spliti:site-set {key? : contacts.telegram | contacts.phone | contacts.email | demo_url | crm_url} {value? : новое значение; пустая строка — убрать}';
 
     protected $description = 'Показать или изменить настройки сайта Spliti (контакты, ссылка на демо)';
 
-    private const ALLOWED = ['contacts.telegram', 'contacts.phone', 'contacts.email', 'demo_url'];
+    private const ALLOWED = ['contacts.telegram', 'contacts.phone', 'contacts.email', 'demo_url', 'crm_url'];
 
     public function handle(): int
     {

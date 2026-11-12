@@ -23,6 +23,7 @@ final class SitePayload
             'content' => $content->content,
             'contacts' => array_filter((array) ($settings['contacts'] ?? []), fn ($v) => is_string($v) && trim($v) !== ''),
             'demo_url' => $settings['demo_url'] ?? null,
+            'crm_url' => $settings['crm_url'] ?? null,
             'updated_at' => $content->updated_at?->toIso8601String(),
         ];
     }

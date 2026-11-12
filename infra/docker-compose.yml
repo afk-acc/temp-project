@@ -38,7 +38,7 @@ services:
     ports:
       - "172.17.0.1:18095:80"
     volumes:
-      - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx:/etc/nginx/conf.d:ro                     # каталог, а не файл: rsync меняет inode, файловый mount видел бы старый конфиг
       - ../web:/srv/web:ro                              # собранный фронт (vite build)
     mem_limit: 48m
     cpus: 0.5

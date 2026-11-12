@@ -5,7 +5,7 @@ interface Titled { t: string; d: string }
 
 export interface SiteContent {
   meta: { title: string; description: string }
-  nav: { product: string; crm: string; process: string; faq: string; cta: string }
+  nav: { product: string; crm: string; process: string; faq: string; login: string; loginHint: string; cta: string }
   hero: { eyebrow: string; title1: string; title2: string; lead: string; demo: string; talk: string; note: string; floor: string; onSale: string; of: string; hint: string }
   proof: { n: string; t: string }[]
   features: {
@@ -31,5 +31,6 @@ export interface SitePayload {
   content: SiteContent
   contacts: Partial<Record<'telegram' | 'phone' | 'email', string>>
   demo_url: string | null
+  crm_url: string | null
   updated_at: string | null
 }
