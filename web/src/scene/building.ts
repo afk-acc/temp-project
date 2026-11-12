@@ -363,6 +363,13 @@ export class BuildingView {
     this.root.add(g)
   }
 
+  /** Подписи площадей на полу — только в «белой коробке»: с мебелью они мешают */
+  setRoomLabelsVisible(on: boolean) {
+    this.interior?.traverse((o) => {
+      if (o.name === 'room-label') o.visible = on
+    })
+  }
+
   /** Прямоугольники для столкновений при ходьбе (план): стены и периметр */
   collisionRects(n: number): Rect[] {
     const f = this.floor(n)!
@@ -423,5 +430,6 @@ function roomLabel(text: string, x: number, y: number, h: number): THREE.Mesh {
   m.rotation.x = -Math.PI / 2
   m.position.set(x, h, -y)
   m.renderOrder = 5
+  m.name = 'room-label'
   return m
 }

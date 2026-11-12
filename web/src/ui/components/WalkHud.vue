@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
-import { selectedUnit } from '@/app/state'
+import { selectedUnit, state } from '@/app/state'
+import { INTERIOR_STYLES } from '@/scene/interior/styles'
 import { formatArea } from '@/domain/format'
 
 defineProps<{ xrSupported: boolean }>()
@@ -48,6 +49,13 @@ onBeforeUnmount(() => emit('stick', 0, 0))
       </div>
       <button v-if="xrSupported" class="btn small primary" @click="$emit('vr')">Войти в VR</button>
     </div>
+    <div class="styles glass" role="group" aria-label="Ремонт">
+      <span class="lbl">Ремонт</span>
+      <button
+        v-for="st in INTERIOR_STYLES" :key="st.id" :class="{ on: state.interior === st.id }" :title="st.hint"
+        @click="state.interior = st.id"
+      >{{ st.label }}</button>
+    </div>
     <div v-if="!touch" class="keys glass">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ходьба</span>
       <span><kbd>Shift</kbd> быстрее</span>
@@ -65,6 +73,11 @@ onBeforeUnmount(() => emit('stick', 0, 0))
 .hud { position: absolute; inset: 0; pointer-events: none; }
 .info { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 10px; pointer-events: auto; white-space: nowrap; }
 .what { font-size: 13px; color: var(--muted); }
+.styles { position: absolute; top: 148px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; pointer-events: auto; }
+.styles .lbl { font-size: 11px; color: var(--muted); padding: 0 8px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+.styles button { border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+.styles button:hover { color: var(--text); }
+.styles button.on { background: var(--accent); color: #1a1208; }
 .what b { color: var(--text); }
 .keys { position: absolute; left: 16px; bottom: 84px; display: flex; gap: 16px; padding: 10px 14px; font-size: 12px; color: var(--muted); }
 kbd { display: inline-block; min-width: 22px; padding: 2px 6px; margin-right: 3px; border-radius: 6px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.06); font: 600 11px var(--font); color: var(--text); text-align: center; }
@@ -74,5 +87,7 @@ kbd { display: inline-block; min-width: 22px; padding: 2px 6px; margin-right: 3p
 @media (max-width: 760px) {
   .info { top: 66px; left: 10px; right: 10px; transform: none; justify-content: space-between; }
   .what { overflow: hidden; text-overflow: ellipsis; }
+  .styles { top: 118px; left: 10px; right: 10px; transform: none; overflow-x: auto; }
+  .styles .lbl { display: none; }
 }
 </style>

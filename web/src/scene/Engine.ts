@@ -8,7 +8,12 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { WEATHER_COVER, litFraction, type Season, type Weather } from '@/domain/atmosphere'
 import { Precipitation, SkyLayers, StreetLamps, atmoUniforms } from './atmosphere'
-import type { BlockLayout, Context, FloorType, Place, PlaceCategory, Point, Project, Unit } from '@/domain/types'
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
+import { layoutUnit, type UnitLayout } from '@/domain/rooms'
+import { distToPolygon } from '@/domain/units'
+import { furnish, type Furnished } from './interior/furnish'
+import { styleKit, type InteriorStyle } from './interior/styles'
+import type { BlockLayout, Context, FloorType, Place, PlaceCategory, Point, Project, Rect, Unit } from '@/domain/types'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
 import type { UnitFilter } from '@/domain/units'
@@ -94,6 +99,14 @@ export class Engine {
   private roomLights: THREE.PointLight[] = []
   private roomLamps = new THREE.Group()
   private roomLampMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
+  // ---------- ремонт и мебель в прогулке ----------
+  private interiorStyle: InteriorStyle = 'scandi'
+  private furnished: Furnished | null = null
+  private walkLayout: UnitLayout | null = null
+  private walkUnit: Unit | null = null
+  /** препятствия прогулки: стены этажа + мебель */
+  private walkRects: Rect[] = []
+  private gtao: GTAOPass
 
   constructor(private canvasHost: HTMLElement, private events: EngineEvents) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -161,6 +174,13 @@ export class Engine {
     const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.mobile ? 0 : 4 })
     this.composer = new EffectComposer(this.renderer, rt)
     this.composer.addPass(new RenderPass(this.scene, this.camera))
+    // мягкие контактные тени (ambient occlusion) — только в квартире: мебель «стоит» на полу, углы темнее
+    this.gtao = new GTAOPass(this.scene, this.camera, 256, 256)
+    this.gtao.enabled = false
+    this.gtao.blendIntensity = 0.9
+    this.gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.0, scale: 1.0, samples: 16 })
+    this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 })
+    this.composer.addPass(this.gtao)
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.15, 0.35, 1.5)
     this.composer.addPass(this.bloom)
     this.composer.addPass(new OutputPass())
@@ -329,6 +349,7 @@ export class Engine {
     // свет в квартире при прогулке
     const room = this.mode === 'walk' ? this.lightsOn : 0
     for (const l of this.roomLights) l.intensity = 9 * room
+    this.furnished?.setLight(room)
     this.roomLampMat.color.setRGB(1, 0.85, 0.65).multiplyScalar(0.8 + 2.5 * room)
   }
 
@@ -655,29 +676,83 @@ export class Engine {
     this.controls.autoRotate = false
     this.tween = null
     this.building.walkIn(unit.floor, units)
-    const rects = this.building.collisionRects(unit.floor)
     const base = f.info.elevation + this.building.slabThickness
+    this.walkUnit = unit
+    this.walkLayout = layoutUnit(f.type, unit)
+    this.buildFurnishing()
+    this.gtao.enabled = true
+    const rects = this.walkRects
 
-    // стартовая точка: самая большая комната квартиры, лицом к окнам
+    // стартовая точка: самая большая свободная точка квартиры, лицом к окнам
     const start = this.startPoint(unit, f.type, rects)
     const pos = this.building.planToWorld(start[0], start[1], base + EYE)
     const yaw = this.bestYaw(start, rects, facades, base + EYE)
     const b = this.building
     const floorY = base + EYE
+    const poly = unit.polygon
+    // ходить можно только внутри выбранной квартиры: точка вне контура (с запасом 0,15 м) не принимается,
+    // шаг по осям раздельно — поэтому вдоль границы скользим, а не застреваем
+    const allowed = (x: number, y: number) => inPolygon(x, y, poly) && distToPolygon(x, y, poly) > 0.15
+    let last: [number, number] = start
     this.walk.start(pos, yaw, (p) => {
       const [x, y] = b.worldToPlan(p)
-      const [rx, ry] = pushOut(x, y, 0.24, rects)
-      const w = b.planToWorld(rx, ry, floorY)
-      return w
+      const [rx, ry] = pushOut(x, y, 0.24, this.walkRects)
+      if (allowed(rx, ry)) last = [rx, ry]
+      return b.planToWorld(last[0], last[1], floorY)
     })
     this.camera.near = 0.05
     this.camera.fov = this.mobile ? 72 : 66
     this.camera.updateProjectionMatrix()
     this.placeRoomLights(unit, f.type, base, f.info.elevation + f.info.height)
+    this.roomLamps.visible = this.interiorStyle === 'none'
     // осадки не идут внутри дома: исключаем габарит этажа
     const [bx0, by0, bx1, by1] = f.type.bbox
     const c = this.building.planToWorld((bx0 + bx1) / 2, (by0 + by1) / 2, 0)
     this.precip.setExclusion({ cx: c.x, cz: c.z, hx: (bx1 - bx0) / 2 + 0.3, hz: (by1 - by0) / 2 + 0.3, rot: -this.building.root.rotation.y })
+  }
+
+  /** Стиль ремонта в прогулке: перестраивает мебель и отделку на лету */
+  setInteriorStyle(style: InteriorStyle) {
+    this.interiorStyle = style
+    if (this.mode !== 'walk' || !this.building) return
+    this.buildFurnishing()
+    this.roomLamps.visible = style === 'none'
+    // если после смены стиля стоим «в» мебели — отталкиваемся
+    const [x, y] = this.building.worldToPlan(this.walk.pos)
+    const [rx, ry] = pushOut(x, y, 0.24, this.walkRects)
+    this.walk.pos.copy(this.building.planToWorld(rx, ry, this.walk.pos.y))
+  }
+
+  /** Комнаты выбранной квартиры с назначением (для подписи стиля и отладки) */
+  get unitRooms() {
+    return this.walkLayout?.rooms ?? []
+  }
+
+  private buildFurnishing() {
+    if (!this.building || !this.walkUnit || !this.walkLayout || this.walkFloorN === null) return
+    this.clearFurnishing()
+    const f = this.building.floor(this.walkFloorN)!
+    const base = f.info.elevation + this.building.slabThickness
+    const ceilH = f.info.height - this.building.slabThickness
+    const wallRects = this.building.collisionRects(this.walkFloorN)
+    const style = this.interiorStyle
+    if (style !== 'none') {
+      this.furnished = furnish(this.walkLayout, style, ceilH)
+      this.furnished.group.position.y = base
+      this.building.root.add(this.furnished.group)
+      this.mat.wallInt.color.set(styleKit(style).wallColor)
+    } else this.mat.wallInt.color.set(0xebe6de)
+    this.building.setRoomLabelsVisible(style === 'none')
+    this.walkRects = [...wallRects, ...(this.furnished?.colliders ?? [])]
+  }
+
+  private clearFurnishing() {
+    if (this.furnished) {
+      this.furnished.group.parent?.remove(this.furnished.group)
+      this.furnished.dispose()
+      this.furnished = null
+    }
+    this.mat.wallInt.color.set(0xebe6de)
   }
 
   /** Потолочные светильники в трёх самых больших комнатах квартиры */
@@ -935,6 +1010,10 @@ export class Engine {
     if (this.mode !== 'walk' && this.mode !== 'view') return
     this.walk.stop()
     this.walkFloorN = null
+    this.clearFurnishing()
+    this.walkLayout = null
+    this.walkUnit = null
+    this.gtao.enabled = false
     this.precip.setExclusion(null)
     this.roomLamps.visible = false
     for (const l of this.roomLights) l.intensity = 0
@@ -955,11 +1034,14 @@ export class Engine {
     this.walk.stop()
     this.camera.position.set(0, 0, 0)
     this.camera.rotation.set(0, 0, 0)
+    const poly = this.walkUnit?.polygon
+    const all = [...rects, ...(this.furnished?.colliders ?? [])]
     await this.xr.enter(this.scene, pos, this.walk.yaw, (p) => {
       const [x, y] = b.worldToPlan(p)
       const inSlab = f.type.slab.some(([x0, y0, x1, y1]) => x > x0 && x < x1 && y > y0 && y < y1)
       if (!inSlab) return false
-      const [rx, ry] = pushOut(x, y, 0.2, rects)
+      if (poly && !inPolygon(x, y, poly)) return false
+      const [rx, ry] = pushOut(x, y, 0.2, all)
       return Math.hypot(rx - x, ry - y) < 0.01
     })
   }
@@ -1180,4 +1262,12 @@ export interface SunHours {
 function emptySunHours(day: string, lat: number, lon: number): SunHours {
   const sd = sunDay(day, lat, lon)
   return { minutes: 0, intervals: [], sunrise: sd.sunrise, sunset: sd.sunset, dayMinutes: sd.dayLength * 60 }
+}
+
+function inPolygon(x: number, y: number, p: Point[]): boolean {
+  let c = false
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    if (p[i][1] > y !== p[j][1] > y && x < ((p[j][0] - p[i][0]) * (y - p[i][1])) / (p[j][1] - p[i][1] + 1e-12) + p[i][0]) c = !c
+  }
+  return c
 }

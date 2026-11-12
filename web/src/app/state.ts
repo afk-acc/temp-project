@@ -3,6 +3,7 @@ import type { ApartmentType, BlockLayout, Context, FloorInfo, FloorType, PlaceCa
 import { matchesFilter, type UnitFilter } from '@/domain/units'
 import type { Mode, SunHours } from '@/scene/Engine'
 import { seasonDay, seasonOf, type Season, type Weather } from '@/domain/atmosphere'
+import type { InteriorStyle } from '@/scene/interior/styles'
 
 const startSeason = seasonOf(new Date())
 
@@ -21,6 +22,8 @@ export const state = reactive({
   sun: { day: seasonDay(startSeason), hour: 15 },
   /** сезон (дата солнца + ландшафт), погода, автопрокрутка суток */
   atmo: { season: startSeason as Season, weather: 'clear' as Weather, playing: false, sunPath: false },
+  /** стиль ремонта при прогулке по квартире */
+  interior: 'scandi' as InteriorStyle,
   xrSupported: false,
   xrActive: false,
   touched: false,

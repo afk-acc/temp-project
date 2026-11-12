@@ -221,6 +221,7 @@ function startWalk() {
   const u = selectedUnit.value
   if (!engine || !u) return
   state.mode = 'walk'
+  engine.setInteriorStyle(state.interior)
   engine.enterWalk(u, scopeUnits.value, facades.value)
 }
 
@@ -309,6 +310,7 @@ watch(() => [state.places.cats.slice(), state.places.all, state.places.on] as co
 watch(() => [state.sun.day, state.sun.hour] as const, ([d, h]) => engine?.setSun(d, h))
 watch(() => [state.atmo.season, state.atmo.weather] as const, ([s, w]) => engine?.setAtmosphere(s, w))
 watch(() => state.atmo.sunPath, (on) => engine?.setSunPathVisible(on))
+watch(() => state.interior, (st) => engine?.setInteriorStyle(st))
 
 function railHover(n: number | null) {
   engine?.hoverFloorFromUI(n)
