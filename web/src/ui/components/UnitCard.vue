@@ -7,6 +7,7 @@ import { STATUS_COLOR, STATUS_LABEL, roomsLabel } from '@/domain/units'
 import { formatArea, formatDate, formatDuration, formatSum } from '@/domain/format'
 import type { ViewSummary } from '@/domain/views'
 import MiniPlan from './MiniPlan.vue'
+import SunStrip from './SunStrip.vue'
 
 const props = defineProps<{ unit: Unit; view: ViewSummary | null }>()
 defineEmits<{ close: []; walk: []; lead: [] }>()
@@ -16,7 +17,7 @@ const floorsTotal = computed(() => activeFloors.value.length)
 void isMassing
 const windowHeight = computed(() => Math.round(floor.value.elevation + 1.5))
 const aptType = computed(() => (props.unit.type_code ? data.aptTypes.value.get(props.unit.type_code) ?? null : null))
-const DAYS: Record<string, string> = { '03-21': '21 марта', '06-21': '21 июня', '12-21': '21 декабря' }
+const DAYS: Record<string, string> = { '03-21': '21 марта', '06-21': '21 июня', '09-23': '23 сентября', '12-21': '21 декабря' }
 const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state.sun.day))
 </script>
 
@@ -46,9 +47,10 @@ const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state
       <div><span>Стороны света</span><b>{{ view?.sidesShort.join(', ') || '—' }}</b></div>
       <div>
         <span>Солнце, {{ dayLabel }}</span>
-        <b class="num">{{ state.sunMinutes === null ? 'считаем…' : state.sunMinutes ? formatDuration(state.sunMinutes) : 'нет прямого' }}</b>
+        <b class="num">{{ state.sunHours === null ? 'считаем…' : state.sunHours.minutes ? formatDuration(state.sunHours.minutes) : 'нет прямого' }}</b>
       </div>
     </div>
+    <SunStrip :hours="state.sunHours" :day-label="dayLabel" />
 
     <div v-if="unit.room_list?.length" class="rooms">
       <div class="eyebrow">Помещения</div>

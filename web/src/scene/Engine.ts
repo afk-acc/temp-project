@@ -2,15 +2,21 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { Sky } from 'three/examples/jsm/objects/Sky.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import { WEATHER_COVER, litFraction, type Season, type Weather } from '@/domain/atmosphere'
+import { Precipitation, SkyLayers, StreetLamps, atmoUniforms } from './atmosphere'
 import type { BlockLayout, Context, FloorType, Place, PlaceCategory, Point, Project, Unit } from '@/domain/types'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
 import type { UnitFilter } from '@/domain/units'
 import { planToENU } from '@/domain/geo'
-import { sunPosition, sunVectorENU, tashkentDate } from '@/domain/sun'
+import { clockLabel, sunDay, sunPosition, sunVectorENU, tashkentDate } from '@/domain/sun'
 import type { Facade } from '@/domain/views'
 import { BuildingView } from './building'
-import { buildContext } from './context'
+import { buildContext, type Trees } from './context'
 import { createMaterials, type Materials } from './materials'
 import { WalkController, pushOut } from './walk'
 import { XRController } from './xr'
@@ -68,8 +74,26 @@ export class Engine {
   private walkFloorN: number | null = null
   private lat = 41.3
   private lon = 69.29
-  private envTimer = 0
   private readonly mobile = matchMedia('(pointer: coarse)').matches
+
+  // ---------- атмосфера: сезон, погода, ночь ----------
+  private composer: EffectComposer
+  private bloom: UnrealBloomPass
+  private skyLayers = new SkyLayers()
+  private precip = new Precipitation()
+  private lamps: StreetLamps | null = null
+  private trees: Trees | null = null
+  private sunAlt = 30
+  private hour = 15
+  /** текущие значения плавно догоняют целевые — смена погоды выглядит как переход, а не щелчок */
+  private atmo = { cover: 0, rain: 0, snow: 0, snowCover: 0, wet: 0 }
+  private atmoTarget = { cover: 0, rain: 0, snow: 0, snowCover: 0, wet: 0 }
+  private lightsOn = 0
+  private envDirty = false
+  private envAt = 0
+  private roomLights: THREE.PointLight[] = []
+  private roomLamps = new THREE.Group()
+  private roomLampMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
 
   constructor(private canvasHost: HTMLElement, private events: EngineEvents) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -119,6 +143,27 @@ export class Engine {
     s.camera.updateProjectionMatrix()
     this.scene.add(this.sun, this.sun.target, this.hemi)
     this.scene.fog = new THREE.Fog(0xd8dde2, 900, 3200)
+    this.sky.renderOrder = -3
+    this.scene.add(this.skyLayers.stars, this.skyLayers.clouds, this.precip.group)
+    this.skyScene.add(this.skyLayers.cloudsEnv)
+
+    // свет в квартире при прогулке: постоянный набор источников (интенсивность 0 днём) —
+    // число источников не меняется, шейдеры не перекомпилируются при входе в квартиру
+    for (let i = 0; i < 3; i++) {
+      const l = new THREE.PointLight(0xffc98f, 0, 8, 2)
+      this.roomLights.push(l)
+      this.scene.add(l)
+    }
+    this.roomLamps.visible = false
+    this.scene.add(this.roomLamps)
+
+    // постобработка: свечение (bloom) для окон, фонарей и бликов; MSAA в буфере вместо сглаживания холста
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.mobile ? 0 : 4 })
+    this.composer = new EffectComposer(this.renderer, rt)
+    this.composer.addPass(new RenderPass(this.scene, this.camera))
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.15, 0.35, 1.5)
+    this.composer.addPass(this.bloom)
+    this.composer.addPass(new OutputPass())
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
@@ -178,9 +223,14 @@ export class Engine {
         ([x, y]) => planToENU(x, y, az) as Point,
       )
     }
-    const { group, occluders } = buildContext(ctx, this.mat, site)
+    const { group, occluders, trees } = buildContext(ctx, this.mat, site)
     this.occluders = occluders
+    this.trees = trees
     this.scene.add(group)
+    this.lamps = new StreetLamps(ctx, site, this.mat.lampPole)
+    this.scene.add(this.lamps.group)
+    this.scene.add(this.sunPath)
+    this.sunPathDay = ''
     this.buildPlaces(ctx.places ?? [])
     this.flyToBuilding(true)
     this.controls.autoRotate = true
@@ -191,20 +241,127 @@ export class Engine {
   setSun(day: string, hour: number) {
     const p = sunPosition(tashkentDate(day, hour), this.lat, this.lon)
     const [e, n, up] = sunVectorENU(p)
-    const dir = new THREE.Vector3(e, up, -n).normalize()
-    const day01 = THREE.MathUtils.smoothstep(p.altitude, -4, 8)
-    this.sunDir.copy(dir)
-    this.sun.intensity = 3.6 * THREE.MathUtils.smoothstep(p.altitude, -1, 12)
-    this.sun.color.setHSL(0.09, 0.6, 0.62 + 0.3 * THREE.MathUtils.smoothstep(p.altitude, 0, 35))
-    this.hemi.intensity = 0.12 + 0.38 * day01
-    this.scene.environmentIntensity = 0.18 + 0.32 * day01
-    const skyDir = p.altitude < -3 ? new THREE.Vector3(e, -0.06, -n).normalize() : dir
+    this.sunDir.set(e, up, -n).normalize()
+    this.sunAlt = p.altitude
+    this.hour = hour
+    this.buildSunPath(day)
+    this.placeSunBall()
+    const skyDir = p.altitude < -3 ? new THREE.Vector3(e, -0.06, -n).normalize() : this.sunDir
     this.sky.material.uniforms.sunPosition.value.copy(skyDir)
     ;(this.skyScene.children[0] as Sky).material.uniforms.sunPosition.value.copy(skyDir)
-    this.renderer.toneMappingExposure = 0.5 + 0.32 * day01
-    ;(this.scene.fog as THREE.Fog).color.setHSL(0.58, 0.15, 0.25 + 0.6 * day01)
-    clearTimeout(this.envTimer)
-    this.envTimer = window.setTimeout(() => this.updateEnv(), 120)
+    this.applyLighting()
+    this.envDirty = true
+  }
+
+  /** Сезон и погода. Снег зимой ложится на землю, кровли и кроны; дождь делает асфальт мокрым и зеркальным. */
+  setAtmosphere(season: Season, weather: Weather) {
+    const t = this.atmoTarget
+    t.cover = WEATHER_COVER[weather]
+    t.rain = weather === 'rain' ? 1 : 0
+    t.snow = weather === 'snow' ? 1 : 0
+    t.snowCover = season === 'winter' || weather === 'snow' ? (weather === 'rain' ? 0.35 : 1) : 0
+    t.wet = weather === 'rain' ? 1 : season === 'winter' && weather !== 'snow' ? 0.2 : 0
+    this.trees?.setSeason(season)
+    const SEASON_COLORS: Record<Season, [number, number, number]> = {
+      winter: [0xb8b2a6, 0x8d8a6c, 0x7d876a],
+      spring: [0xbdb9a0, 0x86b35c, 0x6fa060],
+      summer: [0xc9c2b4, 0x8aa66a, 0x6f9a6a],
+      autumn: [0xc6b9a0, 0xa59a5e, 0x86915e],
+    }
+    const [ground, green, pitch] = SEASON_COLORS[season]
+    this.mat.ground.color.set(ground)
+    this.mat.green.color.set(green)
+    this.mat.pitch.color.set(pitch)
+  }
+
+  /** Свет, небо, туман, окна и фонари из положения солнца и текущей погоды (каждый кадр — это дёшево) */
+  private applyLighting() {
+    const S = THREE.MathUtils.smoothstep
+    const alt = this.sunAlt
+    const { cover, rain, snow } = this.atmo
+    const day01 = S(alt, -4, 8)
+    const night = 1 - day01
+    this.sun.intensity = 3.6 * S(alt, -1, 12) * (1 - 0.88 * cover)
+    this.sun.color.setHSL(0.09, 0.6 * (1 - 0.6 * cover), 0.62 + 0.3 * S(alt, 0, 35))
+    this.hemi.intensity = (0.12 + 0.38 * day01) * (1 + 0.8 * cover * day01) + (0.16 + 0.22 * this.atmo.snowCover) * night
+    this.hemi.color.setRGB(0.87, 0.91, 0.96).lerp(new THREE.Color(0.42, 0.5, 0.72), night)
+    this.scene.environmentIntensity = (0.18 + 0.32 * day01) * (1 - 0.3 * cover)
+    // снег отражает много света — чуть прикрываем экспозицию, чтобы не было «засвета»
+    this.renderer.toneMappingExposure = (0.6 + 0.22 * day01) * (1 + 0.18 * cover * day01) * (1 - 0.14 * this.atmo.snowCover * day01)
+
+    const sky = this.sky.material.uniforms
+    const envSky = (this.skyScene.children[0] as Sky).material.uniforms
+    for (const u of [sky, envSky]) {
+      u.turbidity.value = 5.5 + 9 * cover
+      u.rayleigh.value = 1.1 * (1 - 0.7 * cover)
+    }
+
+    // туман: в ясную погоду — лёгкая дымка вдали, в дождь и снегопад — плотнее и ближе
+    const haze = Math.max(rain * 0.75, snow, cover * 0.25)
+    const fog = this.scene.fog as THREE.Fog
+    fog.near = THREE.MathUtils.lerp(900, 70, haze)
+    fog.far = THREE.MathUtils.lerp(3200, 950, haze)
+    const g = (0.1 + 0.62 * day01) * (1 - 0.22 * rain)
+    // ночью — глубокий синий, а не чёрный: так силуэты домов читаются на фоне неба
+    fog.color.setHSL(0.58, 0.15, 0.25 + 0.6 * day01).lerp(new THREE.Color(0.03, 0.045, 0.085), night * (1 - cover))
+    fog.color.lerp(new THREE.Color(g * 0.97, g, g * 1.04), cover)
+
+    // облака: освещённость, тёплый закат, горизонт в цвет тумана — без шва между землёй и небом
+    const L = 0.04 + 0.96 * day01
+    const sunset = S(alt, -3, 2) * (1 - S(alt, 4, 14))
+    const cu = this.skyLayers.uniforms
+    cu.uCover.value = cover
+    cu.uLight.value.setRGB(1, 0.98, 0.95).lerp(new THREE.Color(1, 0.62, 0.42), sunset * (1 - cover)).multiplyScalar(L * (1 - 0.35 * rain - 0.15 * snow))
+    cu.uShade.value.copy(cu.uLight.value).multiplyScalar(0.5 - 0.15 * rain)
+    cu.uHorizon.value.copy(fog.color)
+    cu.uSunDir.value.copy(this.sunDir)
+    this.skyLayers.setStars((1 - S(alt, -14, -3)) * (1 - cover) ** 2, this.renderer.getPixelRatio())
+
+    // свет: окна зажигаются в сумерках и в пасмурную погоду, фонари — после заката
+    this.lightsOn = THREE.MathUtils.clamp(1 - S(alt, -3, 7) + 0.2 * cover * day01, 0, 1)
+    atmoUniforms.uNight.value = this.lightsOn
+    atmoUniforms.uLit.value = litFraction(this.hour)
+    this.lamps?.setOn(THREE.MathUtils.clamp(1 - S(alt, -2, 5) + 0.35 * rain, 0, 1))
+    this.bloom.strength = 0.1 + 0.38 * this.lightsOn
+    // в квартире светлые стены не должны «светиться» — порог выше
+    this.bloom.threshold = THREE.MathUtils.lerp(1.5, this.mode === 'walk' ? 1.3 : 0.9, this.lightsOn)
+
+    // свет в квартире при прогулке
+    const room = this.mode === 'walk' ? this.lightsOn : 0
+    for (const l of this.roomLights) l.intensity = 9 * room
+    this.roomLampMat.color.setRGB(1, 0.85, 0.65).multiplyScalar(0.8 + 2.5 * room)
+  }
+
+  /** Плавный переход погоды; снежный покров ложится и тает медленнее, чем начинается осадок */
+  private stepAtmosphere(dt: number) {
+    const a = this.atmo
+    const t = this.atmoTarget
+    let changed = false
+    for (const k of Object.keys(a) as (keyof typeof a)[]) {
+      const rate = k === 'snowCover' || k === 'wet' ? 0.9 : 1.6
+      const d = t[k] - a[k]
+      if (Math.abs(d) < 1e-3) {
+        if (a[k] !== t[k]) changed = true
+        a[k] = t[k]
+        continue
+      }
+      a[k] += d * (1 - Math.exp(-dt * rate))
+      changed = true
+    }
+    atmoUniforms.uSnow.value = a.snowCover
+    atmoUniforms.uWet.value = a.wet
+    atmoUniforms.uTime.value += dt
+    if (changed) this.envDirty = true
+    this.applyLighting()
+    const light = 0.15 + 0.85 * THREE.MathUtils.smoothstep(this.sunAlt, -4, 8)
+    this.precip.update(dt, this.camera, a.rain, a.snow, light, this.renderer.getPixelRatio())
+    // карта окружения (отражения) — не чаще 4 раз в секунду
+    const now = performance.now()
+    if (this.envDirty && now - this.envAt > 250) {
+      this.envDirty = false
+      this.envAt = now
+      this.updateEnv()
+    }
   }
 
   private updateEnv() {
@@ -214,48 +371,202 @@ export class Engine {
     this.scene.environment = rt.texture
   }
 
-  /** Минуты прямого солнца для квартиры за день (с учётом затенения соседними домами) */
-  sunMinutes(facades: Facade[], floorElevation: number, day: string, azimuthDeg: number): number {
-    if (!this.building || !this.occluders || !facades.length) return 0
-    // по одному окну на каждое направление
-    const byDir = new Map<number, Facade>()
+  /**
+   * Прямое солнце в окнах квартиры за день (с затенением соседними домами и самим зданием).
+   * Окна — точки снаружи фасада квартиры: по каждому направлению до трёх (края и середина), чтобы тень соседа,
+   * закрывшая середину длинного фасада, не «съела» солнце, которое ещё попадает в угловое окно.
+   */
+  sunMinutes(facades: Facade[], floorElevation: number, day: string, azimuthDeg: number): SunHours {
+    if (!this.building || !facades.length) return emptySunHours(day, this.lat, this.lon)
+    const byDir = new Map<number, Facade[]>()
     for (const f of facades) {
       const k = Math.round(f.azimuth / 10)
-      if (!byDir.has(k) || byDir.get(k)!.length < f.length) byDir.set(k, f)
+      if (!byDir.has(k)) byDir.set(k, [])
+      byDir.get(k)!.push(f)
     }
-    const windows = [...byDir.values()].map((f) => {
-      const p = this.building!.planToWorld(f.mid[0] + f.normal[0] * 0.6, f.mid[1] + f.normal[1] * 0.6, floorElevation + 1.4)
-      const [e, n] = planToENU(f.normal[0], f.normal[1], azimuthDeg)
-      return { p, e, n }
-    })
-    return this.sunMinutesFor(windows, day)
+    const windows: SunWindow[] = []
+    for (const list of byDir.values()) {
+      const pick = [...new Set([0, Math.floor(list.length / 2), list.length - 1])].map((i) => list.at(i)!)
+      for (const f of pick) {
+        const p = this.building.planToWorld(f.mid[0] + f.normal[0] * 0.6, f.mid[1] + f.normal[1] * 0.6, floorElevation + 1.4)
+        const [e, n] = planToENU(f.normal[0], f.normal[1], azimuthDeg)
+        windows.push({ p, e, n })
+      }
+    }
+    return this.sunHoursFor(windows, day)
   }
 
-  private sunMinutesFor(windows: { p: THREE.Vector3; e: number; n: number }[], day: string): number {
-    if (!this.occluders) return 0
-    const occ: THREE.Object3D[] = [this.occluders, ...(this.massing?.occluders() ?? [])]
+  /** Препятствия для солнечного луча: окружение, корпуса ЖК, стены и ламели самого здания */
+  private sunOccluders(): THREE.Object3D[] {
+    const occ: THREE.Object3D[] = []
+    if (this.occluders) occ.push(this.occluders)
+    if (this.massing) occ.push(...this.massing.occluders())
+    if (this.building) occ.push(...this.building.occluders())
+    return occ
+  }
+
+  /**
+   * Интервалы прямого солнца: от восхода до заката шаг 5 минут, каждая смена «солнце/тень» уточняется
+   * бисекцией до ~20 секунд. Солнце считается, когда его видимая высота ≥ 1° и оно светит в фасад
+   * (угол между нормалью фасада и солнцем по горизонтали < 83°), а луч от окна к солнцу ничего не пересекает.
+   */
+  private sunHoursFor(windows: SunWindow[], day: string): SunHours {
+    const sd = sunDay(day, this.lat, this.lon)
+    const result: SunHours = { minutes: 0, intervals: [], sunrise: sd.sunrise, sunset: sd.sunset, dayMinutes: sd.dayLength * 60 }
+    if (sd.sunrise === null || sd.sunset === null || !windows.length) return result
+    const occ = this.sunOccluders()
     const ray = new THREE.Raycaster()
-    ray.far = 700
-    let minutes = 0
-    const STEP = 10
-    for (let m = 4 * 60; m <= 21 * 60; m += STEP) {
-      const sp = sunPosition(tashkentDate(day, m / 60), this.lat, this.lon)
-      if (sp.altitude < 2) continue
+    ray.far = 800
+    const dir = new THREE.Vector3()
+    const lit = (h: number): boolean => {
+      const sp = sunPosition(tashkentDate(day, h), this.lat, this.lon)
+      if (sp.altitude < 1) return false
       const [se, sn, su] = sunVectorENU(sp)
-      const h = Math.hypot(se, sn)
-      const dir = new THREE.Vector3(se, su, -sn).normalize()
-      let lit = false
+      const hz = Math.hypot(se, sn) || 1
+      dir.set(se, su, -sn).normalize()
       for (const w of windows) {
-        if ((w.e * se + w.n * sn) / (h || 1) < 0.12) continue
+        if ((w.e * se + w.n * sn) / hz < 0.12) continue
         ray.set(w.p, dir)
-        if (ray.intersectObjects(occ, false).length === 0) {
-          lit = true
-          break
+        if (ray.intersectObjects(occ, false).length === 0) return true
+      }
+      return false
+    }
+    const STEP = 5 / 60
+    const edge = (a: number, b: number, aLit: boolean): number => {
+      for (let i = 0; i < 4; i++) {
+        const m = (a + b) / 2
+        if (lit(m) === aLit) a = m
+        else b = m
+      }
+      return (a + b) / 2
+    }
+    let t = sd.sunrise
+    let prev = lit(t)
+    let open: number | null = prev ? t : null
+    while (t < sd.sunset) {
+      const nt = Math.min(t + STEP, sd.sunset)
+      const cur = lit(nt)
+      if (cur !== prev) {
+        const x = edge(t, nt, prev)
+        if (cur) open = x
+        else if (open !== null) {
+          result.intervals.push([open, x])
+          open = null
         }
       }
-      if (lit) minutes += STEP
+      prev = cur
+      t = nt
     }
-    return minutes
+    if (open !== null) result.intervals.push([open, sd.sunset])
+    result.minutes = Math.round(result.intervals.reduce((s, [a, b]) => s + (b - a) * 60, 0))
+    return result
+  }
+
+  /** Дуга пути солнца над домом за выбранный день с отметками часов */
+  private sunPath = new THREE.Group()
+  private sunPathDay = ''
+  private sunBall: THREE.Mesh | null = null
+  private sunPathOn = false
+
+  setSunPathVisible(on: boolean) {
+    this.sunPathOn = on
+    this.updateSunPathVisibility()
+    // включили на общем виде — отъезжаем, чтобы дуга целиком вошла в кадр
+    if (on && (this.mode === 'building' || this.mode === 'block')) {
+      const { center, radius } = this.sunPathFrame()
+      const target = new THREE.Vector3(center.x, radius * 0.38, center.z)
+      const dir = this.camera.position.clone().sub(this.controls.target).setY(0)
+      if (dir.lengthSq() < 1e-3) dir.set(0.36, 0, 0.93)
+      dir.normalize()
+      const portrait = this.canvasHost.clientWidth < this.canvasHost.clientHeight
+      const d = radius * (portrait ? 4.2 : 2.9)
+      this.controls.autoRotate = false
+      this.moveCamera(target.clone().addScaledVector(dir, d).setY(radius * 0.95), target, 1.1)
+    }
+  }
+
+  private updateSunPathVisibility() {
+    this.sunPath.visible = this.sunPathOn && (this.mode === 'building' || this.mode === 'block' || this.mode === 'floor')
+  }
+
+  private buildSunPath(day: string) {
+    if (this.sunPathDay === day && this.sunPath.children.length) return
+    this.sunPathDay = day
+    for (const c of [...this.sunPath.children]) {
+      this.sunPath.remove(c)
+      if (c instanceof CSS2DObject) c.element.remove()
+      const m = c as THREE.Mesh
+      m.geometry?.dispose()
+    }
+    const sd = sunDay(day, this.lat, this.lon)
+    if (sd.sunrise === null || sd.sunset === null) return
+    const { center, radius } = this.sunPathFrame()
+    const at = (h: number) => {
+      const [e, n, u] = sunVectorENU(sunPosition(tashkentDate(day, h), this.lat, this.lon))
+      return new THREE.Vector3(center.x + e * radius, Math.max(u, 0) * radius, center.z - n * radius)
+    }
+    const pts: THREE.Vector3[] = []
+    for (let h = sd.sunrise; h <= sd.sunset; h += 1 / 30) pts.push(at(h))
+    pts.push(at(sd.sunset))
+    const tube = Math.max(radius * 0.006, 0.45)
+    const arc = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, tube, 8),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.8, 0.55).multiplyScalar(1.3), transparent: true, opacity: 0.85, fog: false }),
+    )
+    arc.renderOrder = 6
+    this.sunPath.add(arc)
+    // отметки часов и подписи
+    const dotGeo = new THREE.SphereGeometry(tube * 2.6, 12, 8)
+    const dotMat = new THREE.MeshBasicMaterial({ color: 0xf2c79e, fog: false })
+    const label = (text: string, p: THREE.Vector3, cls: string) => {
+      const el = document.createElement('div')
+      el.className = `sun-tick ${cls}`
+      el.textContent = text
+      const o = new CSS2DObject(el)
+      o.position.copy(p)
+      o.center.set(0.5, 1.4)
+      this.sunPath.add(o)
+    }
+    for (let h = Math.ceil(sd.sunrise); h <= Math.floor(sd.sunset); h++) {
+      const p = at(h)
+      const dot = new THREE.Mesh(dotGeo, dotMat)
+      dot.position.copy(p)
+      this.sunPath.add(dot)
+      if (h % 2 === 0 && Math.abs(h - sd.noon) > 0.6) label(`${h}:00`, p, '')
+    }
+    label(`восход ${clockLabel(sd.sunrise)}`, at(sd.sunrise), 'edge')
+    label(`закат ${clockLabel(sd.sunset)}`, at(sd.sunset), 'edge')
+    // линия от центра к точке полудня: где юг и как высоко солнце в полдень
+    const noon = at(sd.noon)
+    const mast = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(center.x, 0, center.z), noon]),
+      new THREE.LineBasicMaterial({ color: 0xf2c79e, transparent: true, opacity: 0.25, fog: false }),
+    )
+    this.sunPath.add(mast)
+    label(`полдень ${clockLabel(sd.noon)} · ${Math.round(sd.noonAltitude)}°`, noon, 'noon')
+    this.sunBall = new THREE.Mesh(
+      new THREE.SphereGeometry(tube * 7, 24, 16),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.85, 0.55).multiplyScalar(3), fog: false }),
+    )
+    this.sunPath.add(this.sunBall)
+    this.placeSunBall()
+  }
+
+  private sunPathFrame(): { center: THREE.Vector3; radius: number } {
+    if (this.massing) {
+      const c = this.massing.center()
+      const r = Math.max(...this.massing.blocks.flatMap((b) => b.footprint.map(([x, y]) => Math.hypot(x - c.x, -y - c.z))))
+      return { center: new THREE.Vector3(c.x, 0, c.z), radius: Math.max(r * 1.25, 120) }
+    }
+    const H = this.building?.height ?? 80
+    return { center: new THREE.Vector3(0, 0, 0), radius: Math.max(H * 1.15, 90) }
+  }
+
+  private placeSunBall() {
+    if (!this.sunBall) return
+    const { center, radius } = this.sunPathFrame()
+    this.sunBall.position.set(center.x, 0, center.z).addScaledVector(this.sunDir, radius)
+    this.sunBall.visible = this.sunAlt > -0.5
   }
 
   // ---------- режимы ----------
@@ -362,6 +673,41 @@ export class Engine {
     this.camera.near = 0.05
     this.camera.fov = this.mobile ? 72 : 66
     this.camera.updateProjectionMatrix()
+    this.placeRoomLights(unit, f.type, base, f.info.elevation + f.info.height)
+    // осадки не идут внутри дома: исключаем габарит этажа
+    const [bx0, by0, bx1, by1] = f.type.bbox
+    const c = this.building.planToWorld((bx0 + bx1) / 2, (by0 + by1) / 2, 0)
+    this.precip.setExclusion({ cx: c.x, cz: c.z, hx: (bx1 - bx0) / 2 + 0.3, hz: (by1 - by0) / 2 + 0.3, rot: -this.building.root.rotation.y })
+  }
+
+  /** Потолочные светильники в трёх самых больших комнатах квартиры */
+  private placeRoomLights(unit: Unit, t: FloorType, floorY: number, ceilY: number) {
+    for (const c of [...this.roomLamps.children]) {
+      this.roomLamps.remove(c)
+      ;(c as THREE.Mesh).geometry.dispose()
+    }
+    const poly = unit.polygon!
+    const inPoly = (x: number, y: number) => {
+      let c = false
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        if (poly[i][1] > y !== poly[j][1] > y && x < ((poly[j][0] - poly[i][0]) * (y - poly[i][1])) / (poly[j][1] - poly[i][1] + 1e-12) + poly[i][0]) c = !c
+      }
+      return c
+    }
+    const rooms = t.rooms.filter((r) => r.area >= 4 && inPoly(r.x, r.y)).sort((a, b) => b.area - a.area).slice(0, 3)
+    this.roomLights.forEach((l, i) => {
+      const r = rooms[i]
+      if (!r || !this.building) {
+        l.position.set(0, -1000, 0)
+        return
+      }
+      l.position.copy(this.building.planToWorld(r.x, r.y, ceilY - 0.45))
+      const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.06, 20), this.roomLampMat)
+      lamp.position.copy(this.building.planToWorld(r.x, r.y, ceilY - 0.06))
+      this.roomLamps.add(lamp)
+    })
+    void floorY
+    this.roomLamps.visible = true
   }
 
   /** Направление первого взгляда: самая длинная свободная линия, с бонусом за окна */
@@ -511,14 +857,19 @@ export class Engine {
     this.camera.updateProjectionMatrix()
   }
 
-  /** Минуты солнца по сторонам корпуса на этаже */
-  blockSunMinutes(id: string, floor: number, day: string): number[] {
+  /** Солнце по сторонам корпуса на этаже: по три точки вдоль каждой стороны */
+  blockSunMinutes(id: string, floor: number, day: string): SunHours[] {
     if (!this.massing) return []
     const it = this.massing.item(id)!
     const h = floorElevation(it.block, floor) + 1.4
     return it.sides.map((sd) => {
-      const p = new THREE.Vector3(sd.mid[0] + sd.normal[0] * 0.7, h, -(sd.mid[1] + sd.normal[1] * 0.7))
-      return this.sunMinutesFor([{ p, e: sd.normal[0], n: sd.normal[1] }], day)
+      const t: [number, number] = [-sd.normal[1], sd.normal[0]]
+      const windows = [-0.35, 0, 0.35].map((k) => ({
+        p: new THREE.Vector3(sd.mid[0] + sd.normal[0] * 0.7 + t[0] * sd.length * k, h, -(sd.mid[1] + sd.normal[1] * 0.7 + t[1] * sd.length * k)),
+        e: sd.normal[0],
+        n: sd.normal[1],
+      }))
+      return this.sunHoursFor(windows, day)
     })
   }
 
@@ -584,6 +935,9 @@ export class Engine {
     if (this.mode !== 'walk' && this.mode !== 'view') return
     this.walk.stop()
     this.walkFloorN = null
+    this.precip.setExclusion(null)
+    this.roomLamps.visible = false
+    for (const l of this.roomLights) l.intensity = 0
     this.controls.enabled = true
     this.camera.near = 0.1
     this.camera.fov = 38
@@ -745,7 +1099,11 @@ export class Engine {
       : this.controls.target
     this.sun.target.position.set(focus.x, this.mode === 'building' ? 0 : focus.y, focus.z)
     this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 650)
-    this.renderer.render(this.scene, this.camera)
+    this.stepAtmosphere(dt)
+    this.updateSunPathVisibility()
+    // в VR постобработка не работает — рисуем напрямую
+    if (this.renderer.xr.isPresenting) this.renderer.render(this.scene, this.camera)
+    else this.composer.render(dt)
     // в прогулке метки мест не показываем: внутри квартиры они видны сквозь стены
     this.labels.domElement.style.display = this.mode === 'walk' ? 'none' : ''
     if (this.mode !== 'walk') this.labels.render(this.scene, this.camera)
@@ -757,6 +1115,8 @@ export class Engine {
     const w = this.canvasHost.clientWidth
     const h = this.canvasHost.clientHeight
     this.renderer.setSize(w, h)
+    this.composer?.setPixelRatio(this.renderer.getPixelRatio())
+    this.composer?.setSize(w, h)
     this.labels.setSize(w, h)
     this.camera.aspect = w / h
     this.applyViewShift()
@@ -797,4 +1157,27 @@ function hull(pts: Point[]): Point[] {
     upper.push(q)
   }
   return lower.slice(0, -1).concat(upper.slice(0, -1))
+}
+
+interface SunWindow {
+  p: THREE.Vector3
+  /** нормаль фасада в ENU (восток, север) */
+  e: number
+  n: number
+}
+
+/** Прямое солнце в окнах за день */
+export interface SunHours {
+  minutes: number
+  /** интервалы солнца, часы местного времени */
+  intervals: [number, number][]
+  sunrise: number | null
+  sunset: number | null
+  /** длина светового дня, минуты */
+  dayMinutes: number
+}
+
+function emptySunHours(day: string, lat: number, lon: number): SunHours {
+  const sd = sunDay(day, lat, lon)
+  return { minutes: 0, intervals: [], sunrise: sd.sunrise, sunset: sd.sunset, dayMinutes: sd.dayLength * 60 }
 }

@@ -12,6 +12,9 @@ export class Builder {
   pos: number[] = []
   nor: number[] = []
   uv: number[] = []
+  /** номер этажа для вершин (атрибут aLevel: свет в окнах по этажам) */
+  lvl: number[] = []
+  level = 0
 
   quad(a: THREE.Vector3Tuple, b: THREE.Vector3Tuple, c: THREE.Vector3Tuple, d: THREE.Vector3Tuple, n: THREE.Vector3Tuple, uvScale = 1) {
     // a-b-c-d против часовой при взгляде со стороны нормали
@@ -23,6 +26,7 @@ export class Builder {
       this.pos.push(v[0], v[1], v[2])
       this.nor.push(n[0], n[1], n[2])
       this.uv.push(uvs[i][0] * w, uvs[i][1] * h)
+      this.lvl.push(this.level)
     })
   }
 
@@ -40,6 +44,7 @@ export class Builder {
       this.pos.push(v[0], v[1], v[2])
       this.nor.push(n[0], n[1], n[2])
       this.uv.push(v[0] * uvScale, v[2] * uvScale)
+      this.lvl.push(this.level)
     }
   }
 
@@ -61,6 +66,7 @@ export class Builder {
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3))
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3))
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2))
+    g.setAttribute('aLevel', new THREE.Float32BufferAttribute(this.lvl, 1))
     g.computeBoundingBox()
     g.computeBoundingSphere()
     return g

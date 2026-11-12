@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { weatherize } from './atmosphere'
 
 /** Палитра по рендеру застройщика: светлый камень, бронзовые ламели, тёмное стекло */
 function woodTexture(): THREE.CanvasTexture {
@@ -40,14 +41,14 @@ export function createMaterials() {
   const wood = woodTexture()
   wood.repeat.set(0.5, 0.5)
   return {
-    stone: new THREE.MeshStandardMaterial({ color: 0xd6c3a6, roughness: 0.82, metalness: 0 }),
-    band: new THREE.MeshStandardMaterial({ color: 0xc9b597, roughness: 0.7, metalness: 0.05 }),
-    bronze: new THREE.MeshStandardMaterial({ color: 0x9c6b46, roughness: 0.38, metalness: 0.65 }),
-    slab: new THREE.MeshStandardMaterial({ color: 0xbfb6a8, roughness: 0.9 }),
-    glass: new THREE.MeshPhysicalMaterial({
+    stone: weatherize(new THREE.MeshStandardMaterial({ color: 0xd6c3a6, roughness: 0.82, metalness: 0 }), { snow: 1, wet: 0.35, uplight: true }),
+    band: weatherize(new THREE.MeshStandardMaterial({ color: 0xc9b597, roughness: 0.7, metalness: 0.05 }), { snow: 1, wet: 0.35, uplight: true }),
+    bronze: weatherize(new THREE.MeshStandardMaterial({ color: 0x9c6b46, roughness: 0.38, metalness: 0.65 }), { snow: 0.7, wet: 0.2 }),
+    slab: weatherize(new THREE.MeshStandardMaterial({ color: 0xbfb6a8, roughness: 0.9 }), { snow: 1, wet: 0.6 }),
+    glass: weatherize(new THREE.MeshPhysicalMaterial({
       color: 0x3f5463, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.78,
       envMapIntensity: 1.4, side: THREE.DoubleSide, depthWrite: false,
-    }),
+    }), { windows: 'glass' }),
     glassHover: new THREE.MeshPhysicalMaterial({
       color: 0xd99a62, emissive: 0xc8875a, emissiveIntensity: 0.55, roughness: 0.1, metalness: 0.1,
       transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false,
@@ -61,16 +62,18 @@ export function createMaterials() {
     floorWood: new THREE.MeshStandardMaterial({ map: wood, color: 0xfff0e0, roughness: 0.55, metalness: 0 }),
     floorCut: new THREE.MeshStandardMaterial({ color: 0xe9e4dc, roughness: 0.95 }),
     ceiling: new THREE.MeshStandardMaterial({ color: 0xf6f4f0, roughness: 0.95, side: THREE.DoubleSide }),
-    ground: new THREE.MeshStandardMaterial({ color: 0xc9c2b4, roughness: 1 }),
-    plaza: new THREE.MeshStandardMaterial({ color: 0xd9d1c2, roughness: 0.9 }),
-    road: new THREE.MeshStandardMaterial({ color: 0x4a4d52, roughness: 0.95 }),
-    path: new THREE.MeshStandardMaterial({ color: 0xc7beae, roughness: 1 }),
+    ground: weatherize(new THREE.MeshStandardMaterial({ color: 0xc9c2b4, roughness: 1 }), { snow: 1, wet: 0.7 }),
+    plaza: weatherize(new THREE.MeshStandardMaterial({ color: 0xd9d1c2, roughness: 0.9 }), { snow: 0.9, wet: 1 }),
+    road: weatherize(new THREE.MeshStandardMaterial({ color: 0x4a4d52, roughness: 0.95 }), { snow: 0.5, wet: 1 }),
+    path: weatherize(new THREE.MeshStandardMaterial({ color: 0xc7beae, roughness: 1 }), { snow: 0.85, wet: 0.9 }),
     water: new THREE.MeshStandardMaterial({ color: 0x3f6f86, roughness: 0.12, metalness: 0.35 }),
-    green: new THREE.MeshStandardMaterial({ color: 0x8aa66a, roughness: 1 }),
-    pitch: new THREE.MeshStandardMaterial({ color: 0x6f9a6a, roughness: 1 }),
-    context: new THREE.MeshStandardMaterial({ color: 0xe2ddd4, roughness: 0.9 }),
-    treeCrown: new THREE.MeshStandardMaterial({ color: 0x6f8f4e, roughness: 0.95, flatShading: true }),
+    green: weatherize(new THREE.MeshStandardMaterial({ color: 0x8aa66a, roughness: 1 }), { snow: 1, wet: 0.35 }),
+    pitch: weatherize(new THREE.MeshStandardMaterial({ color: 0x6f9a6a, roughness: 1 }), { snow: 1, wet: 0.4 }),
+    context: weatherize(new THREE.MeshStandardMaterial({ color: 0xe2ddd4, roughness: 0.9 }), { snow: 1, wet: 0.45, windows: 'context' }),
+    // цвет кроны задаётся по экземплярам (сезон), материал — белый множитель
+    treeCrown: weatherize(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), { snow: 1, wet: 0.2 }),
     treeTrunk: new THREE.MeshStandardMaterial({ color: 0x6b5442, roughness: 1 }),
+    lampPole: weatherize(new THREE.MeshStandardMaterial({ color: 0x3a3d42, roughness: 0.5, metalness: 0.6 }), { snow: 0.6, wet: 0.3 }),
     pick: new THREE.MeshBasicMaterial({ visible: false }),
   }
 }

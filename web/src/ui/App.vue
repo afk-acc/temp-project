@@ -8,7 +8,7 @@ import { Engine } from '@/scene/Engine'
 import TopBar from './components/TopBar.vue'
 import FloorRail from './components/FloorRail.vue'
 import SidePanel from './components/SidePanel.vue'
-import SunBar from './components/SunBar.vue'
+import AtmosphereBar from './components/AtmosphereBar.vue'
 import WalkHud from './components/WalkHud.vue'
 import HoverTip from './components/HoverTip.vue'
 import DataSheet from './components/DataSheet.vue'
@@ -72,6 +72,7 @@ onMounted(async () => {
     engine.load(project, context, types)
     if (import.meta.env.DEV) (window as unknown as { __engine: Engine }).__engine = engine
     engine.setSun(state.sun.day, state.sun.hour)
+    engine.setAtmosphere(state.atmo.season, state.atmo.weather)
     engine.setPlaceFilter(state.places.cats, state.places.all, state.places.on)
     state.progress = 1
     state.xrSupported = await engine.xr.checkSupport()
@@ -282,13 +283,13 @@ const view = computed(() => {
 let sunTimer = 0
 function recomputeSun() {
   clearTimeout(sunTimer)
-  state.sunMinutes = null
+  state.sunHours = null
   const u = selectedUnit.value
   const p = data.project.value
   if (!u || !p || !engine) return
   sunTimer = window.setTimeout(() => {
     const f = activeFloors.value.find((x) => x.n === u.floor)!
-    state.sunMinutes = engine!.sunMinutes(facades.value, f.elevation, state.sun.day, activeAzimuth.value)
+    state.sunHours = engine!.sunMinutes(facades.value, f.elevation, state.sun.day, activeAzimuth.value)
   }, 60)
 }
 
@@ -306,6 +307,8 @@ watch(() => [state.places.cats.slice(), state.places.all, state.places.on] as co
   engine?.setPlaceFilter(state.places.cats, state.places.all, state.places.on)
 })
 watch(() => [state.sun.day, state.sun.hour] as const, ([d, h]) => engine?.setSun(d, h))
+watch(() => [state.atmo.season, state.atmo.weather] as const, ([s, w]) => engine?.setAtmosphere(s, w))
+watch(() => state.atmo.sunPath, (on) => engine?.setSunPathVisible(on))
 
 function railHover(n: number | null) {
   engine?.hoverFloorFromUI(n)
@@ -358,7 +361,7 @@ const floorCount = computed(() => floorStats.value.length)
         @lead="state.showLead = true"
         @back="backFromFloor"
       />
-      <SunBar v-if="!state.xrActive" />
+      <AtmosphereBar v-if="!state.xrActive" />
       <WalkHud
         v-if="state.mode === 'walk'"
         :xr-supported="state.xrSupported"
@@ -388,6 +391,10 @@ const floorCount = computed(() => floorStats.value.length)
 .hint {
   position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
   padding: 10px 16px; font-size: 13px; color: var(--muted); pointer-events: none; white-space: nowrap;
+}
+/* панель атмосферы в две строки — подсказка выше */
+@media (max-width: 1180px) {
+  .hint { bottom: 142px; }
 }
 @media (max-width: 760px) {
   .hint { bottom: auto; top: 76px; font-size: 12px; white-space: normal; width: calc(100% - 32px); text-align: center; }

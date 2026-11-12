@@ -1,10 +1,11 @@
 import * as THREE from 'three'
 import type { Context, Point } from '@/domain/types'
+import type { Season } from '@/domain/atmosphere'
 import { extrudedBuildings, flatPolygons, ribbons } from './geometry'
 import type { Materials } from './materials'
 
 /** Окружение из OSM: земля, дороги, канал, зелень, дома-«макет», деревья. */
-export function buildContext(ctx: Context, mat: Materials, site: Point[]): { group: THREE.Group; occluders: THREE.Mesh } {
+export function buildContext(ctx: Context, mat: Materials, site: Point[]): { group: THREE.Group; occluders: THREE.Mesh; trees: Trees } {
   const group = new THREE.Group()
   group.name = 'context'
 
@@ -33,8 +34,9 @@ export function buildContext(ctx: Context, mat: Materials, site: Point[]): { gro
   houses.receiveShadow = true
   group.add(houses)
 
-  group.add(buildTrees(ctx, mat, site))
-  return { group, occluders: houses }
+  const trees = buildTrees(ctx, mat, site)
+  group.add(trees.group)
+  return { group, occluders: houses, trees }
 }
 
 function addFlat(group: THREE.Group, g: THREE.BufferGeometry, m: THREE.Material) {
@@ -78,7 +80,7 @@ function bbox(p: Point[]) {
   return { x0, y0, x1, y1 }
 }
 
-function buildTrees(ctx: Context, mat: Materials, site: Point[]): THREE.Group {
+function buildTrees(ctx: Context, mat: Materials, site: Point[]): Trees {
   const rand = rng(20261104)
   const spots: { x: number; y: number; s: number }[] = []
   const blds = ctx.buildings.map((b) => ({ p: b.p, bb: bbox(b.p) }))
@@ -130,14 +132,9 @@ function buildTrees(ctx: Context, mat: Materials, site: Point[]): THREE.Group {
   const trunks = new THREE.InstancedMesh(trunkGeo, mat.treeTrunk, spots.length)
   const m = new THREE.Matrix4()
   const q = new THREE.Quaternion()
-  const color = new THREE.Color()
+  const seeds = spots.map(() => [rand(), rand(), rand(), rand()])
   spots.forEach((p, i) => {
     const h = 6 * p.s
-    const r = 2.4 * p.s
-    m.compose(new THREE.Vector3(p.x, h * 0.62, -p.y), q, new THREE.Vector3(r, r * 1.15, r))
-    crowns.setMatrixAt(i, m)
-    color.setHSL(0.24 + rand() * 0.05, 0.32 + rand() * 0.12, 0.34 + rand() * 0.1)
-    crowns.setColorAt(i, color)
     m.compose(new THREE.Vector3(p.x, h * 0.25, -p.y), q, new THREE.Vector3(1, h * 0.5, 1))
     trunks.setMatrixAt(i, m)
   })
@@ -145,5 +142,45 @@ function buildTrees(ctx: Context, mat: Materials, site: Point[]): THREE.Group {
   trunks.castShadow = true
   const g = new THREE.Group()
   g.add(crowns, trunks)
-  return g
+  const trees = new Trees(g, crowns, spots, seeds)
+  trees.setSeason('summer')
+  return trees
+}
+
+/** Деревья по сезонам: весной свежая листва и цветущие (урюк, вишня), летом густая зелень,
+ * осенью жёлто-оранжевая листва, зимой голые кроны (меньше и серо-коричневые, сверху ложится снег). */
+export class Trees {
+  constructor(
+    readonly group: THREE.Group,
+    private crowns: THREE.InstancedMesh,
+    private spots: { x: number; y: number; s: number }[],
+    private seeds: number[][],
+  ) {}
+
+  setSeason(season: Season) {
+    const m = new THREE.Matrix4()
+    const q = new THREE.Quaternion()
+    const color = new THREE.Color()
+    this.spots.forEach((p, i) => {
+      const [a, b, c, d] = this.seeds[i]
+      const h = 6 * p.s
+      const r = 2.4 * p.s * (season === 'winter' ? 0.72 : season === 'spring' ? 0.92 : 1)
+      m.compose(new THREE.Vector3(p.x, h * 0.62, -p.y), q, new THREE.Vector3(r, r * 1.15, r))
+      this.crowns.setMatrixAt(i, m)
+      if (season === 'summer') color.setHSL(0.24 + a * 0.05, 0.32 + b * 0.12, 0.3 + c * 0.1)
+      else if (season === 'spring') {
+        if (d < 0.14) color.setHSL(0.93 + a * 0.04, 0.45, 0.8 + b * 0.08) // розовый цвет
+        else if (d < 0.22) color.setHSL(0.12, 0.15, 0.88) // белый цвет
+        else color.setHSL(0.25 + a * 0.04, 0.45 + b * 0.15, 0.42 + c * 0.08)
+      } else if (season === 'autumn') {
+        if (d < 0.2) color.setHSL(0.22 + a * 0.04, 0.3, 0.32 + b * 0.06) // ещё зелёные
+        else if (d < 0.38) color.setHSL(0.02 + a * 0.03, 0.62, 0.38 + b * 0.08) // красные
+        else color.setHSL(0.07 + a * 0.06, 0.68 + b * 0.15, 0.42 + c * 0.1) // жёлто-оранжевые
+      } else color.setHSL(0.07 + a * 0.03, 0.1 + b * 0.06, 0.25 + c * 0.06)
+      this.crowns.setColorAt(i, color)
+    })
+    this.crowns.instanceMatrix.needsUpdate = true
+    if (this.crowns.instanceColor) this.crowns.instanceColor.needsUpdate = true
+    this.crowns.computeBoundingSphere()
+  }
 }

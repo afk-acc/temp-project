@@ -42,7 +42,7 @@ const floorHeight = computed(() => {
   if (!b) return 0
   return Math.round((state.blockFloor <= 1 ? 0 : b.first_floor + (state.blockFloor - 2) * b.floor_height) + 1.5)
 })
-const DAYS: Record<string, string> = { '03-21': '21 марта', '06-21': '21 июня', '12-21': '21 декабря' }
+const DAYS: Record<string, string> = { '03-21': '21 марта', '06-21': '21 июня', '09-23': '23 сентября', '12-21': '21 декабря' }
 const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state.sun.day))
 void props
 </script>
@@ -75,7 +75,7 @@ void props
       <div class="sides">
         <button v-for="(sd, i) in sides" :key="i" class="side" :class="{ on: state.viewSide === i }" @click="state.viewSide = i">
           <b>{{ sd.short }}</b>
-          <span class="num">{{ state.blockSun === null ? '…' : state.blockSun[i] ? formatDuration(state.blockSun[i]) : 'нет солнца' }}</span>
+          <span class="num">{{ state.blockSun === null ? '…' : state.blockSun[i]?.minutes ? formatDuration(state.blockSun[i].minutes) : 'нет солнца' }}</span>
         </button>
       </div>
       <button class="btn primary wide" :disabled="selectedBlock.retail_ground && state.blockFloor === 1" @click="emit('open-floor')">

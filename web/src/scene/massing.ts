@@ -60,8 +60,14 @@ export class MassingView {
       if (L < 0.3) continue
       const t: Point = [(c[0] - a[0]) / L, (c[1] - a[1]) / L]
       const n: Point = [t[1], -t[0]] // наружу для обхода против часовой
-      // стеклянная оболочка чуть внутри контура
-      edgeQuad(glassB, a, t, n, 0, L, -0.12, 0, H)
+      // стеклянная оболочка чуть внутри контура — по этажам, чтобы ночью свет горел в отдельных квартирах
+      for (let f = 1; f <= b.levels; f++) {
+        const y0 = floorElevation(b, f)
+        const y1 = f === b.levels ? H : floorElevation(b, f + 1)
+        glassB.level = f
+        edgeQuad(glassB, a, t, n, 0, L, -0.12, y0, y1)
+      }
+      glassB.level = 0
       // простенки
       const k = Math.max(2, Math.round(L / 1.9))
       for (let j = 0; j <= k; j++) {

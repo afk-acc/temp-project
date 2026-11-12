@@ -1,7 +1,10 @@
 import { computed, reactive, shallowRef } from 'vue'
 import type { ApartmentType, BlockLayout, Context, FloorInfo, FloorType, PlaceCategory, Project, ProjectIndexItem, Unit, UnitStatus } from '@/domain/types'
 import { matchesFilter, type UnitFilter } from '@/domain/units'
-import type { Mode } from '@/scene/Engine'
+import type { Mode, SunHours } from '@/scene/Engine'
+import { seasonDay, seasonOf, type Season, type Weather } from '@/domain/atmosphere'
+
+const startSeason = seasonOf(new Date())
 
 /** Состояние представления. Данные приходят из API и живут только на время сессии. */
 export const state = reactive({
@@ -15,19 +18,22 @@ export const state = reactive({
   hoverUnit: null as number | null,
   tip: { x: 0, y: 0 },
   filter: { rooms: [], onlyAvailable: false } as UnitFilter,
-  sun: { day: todayIso(), hour: 15 },
+  sun: { day: seasonDay(startSeason), hour: 15 },
+  /** сезон (дата солнца + ландшафт), погода, автопрокрутка суток */
+  atmo: { season: startSeason as Season, weather: 'clear' as Weather, playing: false, sunPath: false },
   xrSupported: false,
   xrActive: false,
   touched: false,
   showData: false,
   showLead: false,
-  sunMinutes: null as number | null,
+  /** прямое солнце в окнах выбранной квартиры на дату сезона */
+  sunHours: null as SunHours | null,
   // режим «массинг»: корпуса без поэтажных планов
   blockId: null as string | null,
   hoverBlock: null as string | null,
   blockFloor: 1,
   viewSide: 0,
-  blockSun: null as number[] | null,
+  blockSun: null as SunHours[] | null,
   places: { on: true, all: false, cats: ['metro', 'shop', 'bank', 'food', 'edu', 'health', 'sport', 'auto'] as PlaceCategory[] },
 })
 
@@ -97,8 +103,3 @@ export const totals = computed(() => {
   for (const u of units) by[u.status]++
   return { total: units.length, by, matching: units.filter((u) => matchesFilter(u, state.filter)).length }
 })
-
-function todayIso(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}

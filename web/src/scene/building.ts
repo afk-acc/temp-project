@@ -185,6 +185,20 @@ export class BuildingView {
 
   // ---------- режимы ----------
 
+  /** Наружные стены, ламели и кровля — препятствия для солнечного луча при расчёте часов солнца */
+  occluders(): THREE.Object3D[] {
+    const out: THREE.Object3D[] = []
+    for (const f of this.floors) {
+      out.push(f.walls)
+      if (f.fins) out.push(f.fins)
+    }
+    this.crown.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) out.push(o)
+    })
+    this.root.updateMatrixWorld()
+    return out
+  }
+
   pickables(): THREE.Object3D[] {
     return this.floors.filter((f) => f.group.visible).map((f) => f.pick)
   }
