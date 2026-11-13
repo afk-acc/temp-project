@@ -162,7 +162,7 @@ export function artwork(k: StyleKit, W: number, H: number, variant: number): THR
   B(g, k.frame, W, H, 0.035, 0, 0, 0.0175)
   const canvas = new THREE.Mesh(
     new THREE.PlaneGeometry(W - 0.06, H - 0.06),
-    new THREE.MeshStandardMaterial({ map: artTex(k.id, variant), roughness: 0.85 }),
+    new THREE.MeshStandardMaterial({ map: artTex(k.id, variant), roughness: 0.85, userData: { owned: true } }),
   )
   canvas.position.set(0, H / 2, 0.036)
   g.add(canvas)
@@ -290,6 +290,12 @@ export function kitchenRun(k: StyleKit, L: number, o: KitchenOpts): THREE.Group 
   }
   const run = b - a
   const cx = (a + b) / 2
+  // мойка — ближе к холодильнику, варочная — ближе к другому торцу; между ними рабочая зона ≥ 0,25 м
+  const fromFridge = o.fridge === 'right' ? -1 : 1
+  const start = o.fridge === 'right' ? b : a, end = o.fridge === 'right' ? a : b
+  const sinkOff = Math.max(0.35, run * 0.28), hobOff = Math.max(0.4, run * 0.26)
+  const sx = start + fromFridge * Math.max(0.3, Math.min(sinkOff, run - hobOff - 0.85))
+  const hx = end - fromFridge * hobOff
   B(g, k.skirting, run, 0.1, D - 0.08, cx, 0, -0.04)
   B(g, k.kitchenFront, run, 0.76, D - 0.02, cx, 0.1, 0)
   // швы фасадов
@@ -300,13 +306,11 @@ export function kitchenRun(k: StyleKit, L: number, o: KitchenOpts): THREE.Group 
   // столешница
   B(g, k.countertop, run + 0.02, 0.04, D + 0.02, cx, 0.86, 0.01, 0.004)
   // мойка и смеситель
-  const sx = a + run * 0.3
   B(g, k.chrome, 0.5, 0.005, 0.4, sx, 0.9, 0.03)
   B(g, k.screen, 0.44, 0.004, 0.34, sx, 0.902, 0.03)
   C(g, k.chrome, 0.018, 0.022, 0.3, sx, 0.9, -0.22, 12)
   B(g, k.chrome, 0.02, 0.02, 0.2, sx, 1.18, -0.13)
   // варочная панель и духовка
-  const hx = a + run * 0.72
   B(g, k.screen, 0.58, 0.006, 0.5, hx, 0.9, 0.02, 0.003)
   B(g, k.screen, 0.58, 0.5, 0.01, hx, 0.2, D / 2 + 0.002)
   // фартук
@@ -319,6 +323,18 @@ export function kitchenRun(k: StyleKit, L: number, o: KitchenOpts): THREE.Group 
     // вытяжка
     B(g, k.id === 'loft' ? k.metal : k.chrome, 0.6, 0.06, 0.32, hx, 1.42, -D / 2 + 0.16)
   }
+  return g
+}
+
+/** Отдельный холодильник: 0,62 × 0,66 м */
+export function fridge(k: StyleKit): THREE.Group {
+  const g = new THREE.Group()
+  g.name = 'fridge'
+  const fr = k.id === 'loft' ? k.chrome : k.kitchenFront
+  B(g, fr, 0.6, 2.0, 0.64, 0, 0, 0, 0.01)
+  B(g, k.metal, 0.58, 0.004, 0.004, 0, 1.2, 0.322)
+  B(g, k.handle, 0.015, 0.4, 0.02, -0.25, 1.3, 0.33)
+  B(g, k.handle, 0.015, 0.3, 0.02, -0.25, 0.85, 0.33)
   return g
 }
 
@@ -363,12 +379,15 @@ export function bathtub(k: StyleKit, L = 1.7, W = 0.75): THREE.Group {
   return g
 }
 
-export function shower(k: StyleKit, W = 0.9, D = 0.9): THREE.Group {
+/** Душевой поддон со стеклом: боковое стекло со стороны hand (локальный ±x), спереди — неподвижная половина */
+export function shower(k: StyleKit, W = 0.9, D = 0.9, hand: 1 | -1 = 1): THREE.Group {
   const g = new THREE.Group()
   g.name = 'shower'
   B(g, k.ceramic, W, 0.05, D, 0, 0, 0, 0.01)
-  B(g, k.glass, 0.01, 1.95, D, W / 2, 0.05, 0)
-  B(g, k.chrome, 0.012, 0.012, 0.012, W / 2, 2.0, 0)
+  B(g, k.glass, 0.01, 1.95, D, hand * (W / 2 - 0.005), 0.05, 0)
+  B(g, k.glass, W * 0.5, 1.95, 0.01, hand * W * 0.25, 0.05, D / 2 - 0.005)
+  B(g, k.chrome, 0.012, 0.012, D, hand * (W / 2 - 0.005), 2.0, 0)
+  B(g, k.chrome, W * 0.5, 0.012, 0.012, hand * W * 0.25, 2.0, D / 2 - 0.005)
   C(g, k.chrome, 0.012, 0.012, 0.35, 0, 1.75, -D / 2 + 0.05, 8)
   C(g, k.chrome, 0.12, 0.12, 0.015, 0, 2.08, -D / 2 + 0.2, 24)
   B(g, k.chrome, 0.012, 0.012, 0.16, 0, 2.09, -D / 2 + 0.12)

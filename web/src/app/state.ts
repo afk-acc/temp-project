@@ -25,6 +25,8 @@ export const state = reactive({
   atmo: { season: startSeason as Season, weather: 'clear' as Weather, playing: false, sunPath: false },
   /** стиль ремонта при прогулке по квартире */
   interior: 'scandi' as InteriorStyle,
+  /** мебель в прогулке (отдельно от отделки); в «Без отделки» не показывается */
+  furniture: true,
   xrSupported: false,
   xrActive: false,
   touched: false,
