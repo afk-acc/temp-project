@@ -112,6 +112,11 @@ vec3 atmoEm = vec3(0.0);
   float h = atmoHash(vec2(cell * 1.31 + vAtmoLvl * 0.17, vAtmoLvl * 3.7 + 11.0));
   float h2 = atmoHash(vec2(cell + 17.0, vAtmoLvl * 1.3 + 5.0));
   float lit = step(h, uLit);
+  // днём окна разные: чуть светлее или темнее стекло, в части окон — светлые шторы или жалюзи
+  float blind = step(0.8, fract(h * 7.31 + h2 * 3.7));
+  diffuseColor.rgb *= 0.8 + 0.4 * h2;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.6, 0.58, 0.54), blind * 0.5 * (1.0 - uNight));
+  roughnessFactor = mix(roughnessFactor, 0.45, blind * 0.6);
   vec3 c = mix(vec3(1.0, 0.56, 0.24), vec3(1.0, 0.82, 0.58), h2);
   c = mix(c, vec3(0.62, 0.78, 1.0), step(0.9, h2));
   float fr = fract(along);

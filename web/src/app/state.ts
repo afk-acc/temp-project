@@ -25,6 +25,8 @@ export const state = reactive({
   atmo: { season: startSeason as Season, weather: 'clear' as Weather, playing: false, sunPath: false },
   /** стиль ремонта при прогулке по квартире */
   interior: 'scandi' as InteriorStyle,
+  /** чистый вид: панели скрыты, на экране только сцена */
+  uiHidden: false,
   xrSupported: false,
   xrActive: false,
   touched: false,

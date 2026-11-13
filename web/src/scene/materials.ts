@@ -93,9 +93,11 @@ export function createMaterials() {
     band: weatherize(new THREE.MeshStandardMaterial({ color: 0xc9b597, roughness: 0.7, metalness: 0.05 }), { snow: 1, wet: 0.35, uplight: true }),
     bronze: weatherize(new THREE.MeshStandardMaterial({ color: 0x9c6b46, roughness: 0.38, metalness: 0.65 }), { snow: 0.7, wet: 0.2 }),
     slab: weatherize(new THREE.MeshStandardMaterial({ color: 0xbfb6a8, roughness: 0.9 }), { snow: 1, wet: 0.6 }),
+    // наружное остекление непрозрачное и зеркальное, как настоящий тонированный стеклопакет:
+    // сквозь прозрачное было видно, что корпуса внутри пустые (особенно из окна квартиры на соседние дома)
     glass: weatherize(new THREE.MeshPhysicalMaterial({
-      color: 0x3f5463, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.78,
-      envMapIntensity: 1.4, side: THREE.DoubleSide, depthWrite: false,
+      color: 0x34444f, roughness: 0.06, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.04,
+      envMapIntensity: 1.6, side: THREE.DoubleSide,
     }), { windows: 'glass' }),
     glassHover: new THREE.MeshPhysicalMaterial({
       color: 0xd99a62, emissive: 0xc8875a, emissiveIntensity: 0.55, roughness: 0.1, metalness: 0.1,

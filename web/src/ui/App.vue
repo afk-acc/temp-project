@@ -308,7 +308,16 @@ async function enterVR() {
 }
 
 function onKey(e: KeyboardEvent) {
+  const tag = (e.target as HTMLElement | null)?.tagName
+  if ((e.code === 'KeyH') && tag !== 'INPUT' && tag !== 'TEXTAREA' && !state.showLead && !state.loading) {
+    state.uiHidden = !state.uiHidden
+    return
+  }
   if (e.key !== 'Escape') return
+  if (state.uiHidden) {
+    state.uiHidden = false
+    return
+  }
   if (state.showLead || state.showData) {
     state.showLead = false
     state.showData = false
@@ -387,10 +396,12 @@ const floorCount = computed(() => floorStats.value.length)
 </script>
 
 <template>
-  <div class="app" :class="`mode-${state.mode}`">
+  <div class="app" :class="[`mode-${state.mode}`, { 'ui-off': state.uiHidden }]">
     <div ref="host" class="stage" />
 
     <template v-if="!state.loading && data.project.value">
+      <!-- все панели в одной обёртке: кнопка «Скрыть панели» убирает их разом, сцена остаётся во весь экран -->
+      <div v-show="!state.uiHidden" class="ui">
       <TopBar
         :project="data.project.value"
         :mode="state.mode"
@@ -441,6 +452,19 @@ const floorCount = computed(() => floorStats.value.length)
           {{ isMassing ? 'Нажмите на корпус — покажем вид с любого этажа и солнце по сторонам' : 'Наведите на этаж и нажмите — откроется план с квартирами' }}
         </div>
       </Transition>
+      </div>
+      <button
+        v-if="!state.xrActive"
+        class="ui-toggle glass"
+        :class="{ off: state.uiHidden }"
+        :title="state.uiHidden ? 'Показать панели (H)' : 'Скрыть панели — чистый вид (H)'"
+        :aria-label="state.uiHidden ? 'Показать панели' : 'Скрыть панели'"
+        @click="state.uiHidden = !state.uiHidden"
+      >
+        <svg v-if="!state.uiHidden" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+        <svg v-else viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" /></svg>
+        <span v-if="state.uiHidden">Показать панели</span>
+      </button>
       <DataSheet v-if="state.showData" @close="state.showData = false" />
       <LeadDialog v-if="state.showLead" @close="state.showLead = false" />
     </template>
@@ -452,6 +476,19 @@ const floorCount = computed(() => floorStats.value.length)
 <style scoped>
 .app { position: fixed; inset: 0; }
 .stage { position: absolute; inset: 0; isolation: isolate; z-index: 0; }
+.ui { display: contents; }
+/* чистый вид: без меток мест и подписей на сцене */
+.app.ui-off :deep(.labels-layer) { display: none; }
+.ui-toggle {
+  position: absolute; right: 16px; bottom: 16px; z-index: 20; height: 44px; min-width: 44px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 22px;
+  color: var(--text); font: 600 13px var(--font); cursor: pointer; transition: opacity 0.25s;
+}
+.ui-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* в чистом виде кнопка почти не видна, проявляется при наведении */
+.ui-toggle.off { opacity: 0.35; }
+.ui-toggle.off:hover, .ui-toggle.off:focus-visible { opacity: 1; }
+@media (max-width: 760px) { .ui-toggle { bottom: 76px; right: 10px; } }
 .view-hud { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 14px 8px 8px; font-size: 13px; white-space: nowrap; }
 @media (max-width: 760px) { .view-hud { top: 66px; left: 10px; right: 10px; transform: none; } .view-hud .muted { display: none; } }
 .hint {
