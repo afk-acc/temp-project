@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import SplitiLogo from '@/brand/SplitiLogo.vue'
-import { data } from '@/app/state'
+import { data, hasParking } from '@/app/state'
 import { formatDate } from '@/domain/format'
 defineEmits<{ close: [] }>()
 </script>
@@ -28,6 +28,14 @@ defineEmits<{ close: [] }>()
       <ul class="asm">
         <li v-for="a in data.project.value!.assumptions" :key="a">{{ a }}</li>
       </ul>
+      <div class="eyebrow">Общее для всех ЖК в демо</div>
+      <ul class="asm">
+        <li><b>Солнце</b> — положение по координатам дома и дате (алгоритм NOAA); часы солнца в окнах считаются с учётом соседних домов и корпусов ЖК, без деревьев и облаков.</li>
+        <li><b>Сезоны и погода</b> — сезон задаёт дату (21 декабря, 21 марта, 21 июня, 23 сентября) и вид двора; облака, дождь, снег и ночь — для наглядности, это не прогноз.</li>
+        <li><b>Ремонт и мебель</b> в прогулке — три примера отделки и типовая мебель, расставленная программой; это не дизайн-проект и не входит в цену.</li>
+        <li><b>Вид из окна</b> — модель окружения по OpenStreetMap, не фотография: соседние дома упрощены.</li>
+        <li v-if="hasParking"><b>Паркинг</b> — раскладка мест, статусы и цены тестовые: планов паркинга застройщика в открытом доступе нет.</li>
+      </ul>
       <p class="disc">{{ data.project.value!.disclaimer }} {{ data.context.value?.attribution }}</p>
       <div class="made"><SplitiLogo :height="16" /><span>3D-модель, шахматка и CRM</span></div>
     </div>
@@ -44,6 +52,7 @@ h2 { margin: 6px 0 14px; font-size: 22px; letter-spacing: -0.01em; }
 table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 13px; }
 td { padding: 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 td:first-child { color: var(--muted); width: 44%; padding-right: 12px; }
+.asm b { color: var(--text); font-weight: 600; }
 .asm { margin: 8px 0 14px; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 5px; line-height: 1.45; }
 .disc { font-size: 12px; color: var(--faint); margin: 0; }
 .made { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; --brand-accent: var(--accent); }

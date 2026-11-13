@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { data, hasParking, isLive, isTestData, selectedBlock, state } from '@/app/state'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
-import { formatDuration, formatDate, formatSum, plural } from '@/domain/format'
+import { formatDuration, formatDate, formatSum, plural, shortLegalName } from '@/domain/format'
 import type { BlockSide } from '@/scene/massing'
 import type { PlaceCategory } from '@/domain/types'
 
@@ -13,6 +13,7 @@ const pk = computed(() => data.parking.value?.summary ?? null)
 
 const project = computed(() => data.project.value!)
 const blocks = computed(() => project.value.building.blocks ?? [])
+const unitsTotal = computed(() => project.value.catalog?.units_total ?? 0)
 const places = computed(() => data.context.value?.places ?? [])
 const CATS = Object.keys(PLACE_CATEGORY) as PlaceCategory[]
 
@@ -91,8 +92,8 @@ void props
 
     <template v-else>
       <div class="eyebrow">Жилой комплекс</div>
-      <div class="big num">{{ blocks.length }} <span>корпусов · {{ project.building.floors_total }} этажей всего</span></div>
-      <p class="note">Статус по госреестру: <b>{{ project.gov_registry.status_ru }}</b>. Заказчик — {{ project.developer.legal_name }}, подрядчик — {{ project.gov_registry.contractor }}.</p>
+      <div class="big num">{{ blocks.length }} <span>{{ plural(blocks.length, 'корпус', 'корпуса', 'корпусов') }}<template v-if="unitsTotal"> · {{ unitsTotal }} {{ plural(unitsTotal, 'квартира', 'квартиры', 'квартир') }}</template></span></div>
+      <p class="note">Статус по госреестру: <b>{{ project.gov_registry.status_ru }}</b>. Заказчик — {{ shortLegalName(project.developer.legal_name) }}<template v-if="project.gov_registry.contractor">, подрядчик — {{ shortLegalName(project.gov_registry.contractor) }}</template>.</p>
       <p v-if="data.aptTypes.value.size" class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. Планировки квартир — из каталога застройщика, <b class="warn">расстановка на этаже условная</b>; статусы и цены ведёт отдел продаж<template v-if="isLive"> в CRM — они обновляются на странице сами</template><template v-if="isTestData">, стартовые значения тестовые</template>.</p>
       <p v-else class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. <b class="warn">Планировки, статусы и цены — тестовые</b>: настоящих планов застройщика в открытом доступе нет.</p>
     </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Project } from '@/domain/types'
-import { formatDate } from '@/domain/format'
+import { formatDate, isFuture } from '@/domain/format'
 import type { Mode } from '@/scene/Engine'
 import ProjectSwitch from './ProjectSwitch.vue'
 
@@ -19,7 +19,8 @@ defineEmits<{ back: []; data: [] }>()
       <div class="sep" />
       <div class="gov" :title="`Госреестр строек, объект ${project.gov_registry.object_id}, данные на ${formatDate(project.gov_registry.observed_at)}`">
         <span class="pulse" />
-        <span>{{ project.gov_registry.status_ru }}{{ project.gov_registry.deadline ? ` · срок ${formatDate(project.gov_registry.deadline)}` : ' · госреестр' }}</span>
+        <!-- прошедший срок из госреестра не выдаём за обещание: показываем только будущий -->
+        <span>{{ project.gov_registry.status_ru }}{{ isFuture(project.gov_registry.deadline) ? ` · срок ${formatDate(project.gov_registry.deadline)}` : ' · госреестр' }}</span>
       </div>
     </div>
     <div class="actions">
