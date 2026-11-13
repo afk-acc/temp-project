@@ -71,7 +71,8 @@ const dayLabel = computed(() => DAYS[state.sun.day.slice(5)] ?? formatDate(state
         <span class="muted">Стоимость</span>
         <b>{{ unit.status === 'sold' ? 'продана' : unit.status === 'unavailable' ? 'не продаётся' : formatSum(unit.price) }}<em v-if="unit.test && unit.price !== null && (unit.status === 'available' || unit.status === 'booked')"> · тест</em></b>
       </div>
-      <button class="btn small" @click="$emit('lead')">Узнать цену</button>
+      <!-- у проданной «узнать цену» звучит странно: заявка та же (с номером квартиры), менеджер подберёт похожую -->
+      <button class="btn small" @click="$emit('lead')">{{ unit.status === 'sold' || unit.status === 'unavailable' ? 'Подобрать похожую' : 'Узнать цену' }}</button>
     </div>
 
     <div class="actions">

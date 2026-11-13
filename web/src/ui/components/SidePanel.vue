@@ -50,8 +50,8 @@ const floorLabel = computed(() => {
         <div class="stats">
           <div v-for="s in (['available','booked','sold'] as const)" :key="s"><i :style="{ background: STATUS_COLOR[s] }" />{{ STATUS_LABEL[s] }} <b class="num">{{ totals.by[s] }}</b></div>
         </div>
-        <p v-if="isLive" class="note">Всего {{ totals.total }} квартир. Статусы ведёт отдел продаж в CRM, страница обновляет их сама.</p>
-        <p v-else class="note">Всего {{ totals.total }} квартир в каталоге застройщика. Статусы на {{ formatDate(data.observedAt.value) }}.</p>
+        <p v-if="isLive" class="note">Всего {{ totals.total }} {{ plural(totals.total, 'квартира', 'квартиры', 'квартир') }}. Статусы ведёт отдел продаж в CRM, страница обновляет их сама.</p>
+        <p v-else class="note">Всего {{ totals.total }} {{ plural(totals.total, 'квартира', 'квартиры', 'квартир') }} в каталоге застройщика. Статусы на {{ formatDate(data.observedAt.value) }}.</p>
       </template>
       <template v-else>
         <div class="floor-sub muted">{{ floorLabel }}</div>

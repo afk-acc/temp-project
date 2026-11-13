@@ -101,6 +101,32 @@ const year = new Date().getFullYear()
       </div>
     </section>
 
+    <!-- новое в демо: сезоны, паркинг, путь солнца, ремонт, живые статусы + призыв записаться на показ -->
+    <section v-if="t.more" id="more" class="sec more">
+      <div class="wrap">
+        <div class="head" v-reveal>
+          <p class="eyebrow mono">{{ t.more.eyebrow }}</p>
+          <h2>{{ t.more.title }}</h2>
+        </div>
+        <div class="bento">
+          <article v-for="(f, i) in t.more.items" :key="f.k" class="card" :class="`c-${f.k}`" v-reveal="i">
+            <Shot :src="apiAsset(f.image)" :alt="f.t" :fig="f.fig" />
+            <div class="txt"><h3>{{ f.t }}</h3><p>{{ f.d }}</p></div>
+          </article>
+        </div>
+        <ul class="more-list">
+          <li v-for="(x, i) in t.more.list" :key="i" v-reveal="i"><span class="n mono">{{ String(i + 1).padStart(2, '0') }}</span><h3>{{ x.t }}</h3><p>{{ x.d }}</p></li>
+        </ul>
+        <div class="more-cta" v-reveal>
+          <div><h3>{{ t.more.cta.t }}</h3><p>{{ t.more.cta.d }}</p></div>
+          <div class="cta-btns">
+            <a href="#contact" class="btn primary">{{ t.more.cta.btn }} <span aria-hidden="true">→</span></a>
+            <a :href="demoUrl" class="btn ghost" target="_blank" rel="noopener">{{ t.hero.demo }} <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- откуда начинаем -->
     <section class="sec open">
       <div class="wrap open-grid" v-reveal>

@@ -28,6 +28,16 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => clearInterval(timer))
 
+// сессия истекла (или пароль менеджера сменили) — на экран входа, а не «Unauthenticated.» в карточке
+function onUnauthorized() {
+  if (!crmState.user) return
+  crmState.user = null
+  toast('Сессия истекла — войдите снова')
+}
+window.addEventListener('api:unauthorized', onUnauthorized)
+window.addEventListener('unhandledrejection', (ev) => { if (ev.reason instanceof ApiError && ev.reason.status === 401) ev.preventDefault() })
+onBeforeUnmount(() => window.removeEventListener('api:unauthorized', onUnauthorized))
+
 async function loadProjects() {
   crmState.projects = (await crm.projects()).items
   const fromUrl = new URLSearchParams(location.search).get('p')

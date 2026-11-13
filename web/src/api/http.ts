@@ -10,16 +10,22 @@ export class ApiError extends Error {
     super(message)
   }
 
-  /** Первое сообщение валидации Laravel ({errors: {field: [msg]}}) или текст ответа */
+  /** Первое сообщение валидации Laravel ({errors: {field: [msg]}}) или текст ответа — служебные английские заменяются русскими */
   get firstMessage(): string {
     const b = this.body as { message?: string; errors?: Record<string, string[]> } | null
     const first = b?.errors ? Object.values(b.errors)[0]?.[0] : undefined
-    return first ?? b?.message ?? this.message
+    if (first) return first
+    if (this.status === 401) return 'Сессия истекла — войдите снова'
+    if (this.status === 419) return 'Страница устарела — обновите её'
+    // Sanctum не открыл сессию: адрес страницы не в SANCTUM_STATEFUL_DOMAINS бэкенда
+    if (b?.message?.startsWith('Session store not set')) return `Вход с адреса ${location.host} не разрешён: добавьте его в SANCTUM_STATEFUL_DOMAINS в backend/.env`
+    return b?.message ?? this.message
   }
 }
 
 async function parse<T>(res: Response, path: string): Promise<T> {
   const body = res.headers.get('content-type')?.includes('json') ? await res.json() : null
+  if (res.status === 401) window.dispatchEvent(new CustomEvent('api:unauthorized'))
   if (!res.ok) throw new ApiError(res.status, body, `API ${path}: ${res.status}`)
   return body as T
 }

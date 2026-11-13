@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../app/Modules/Catalog/Console',
         __DIR__.'/../app/Modules/Identity/Console',
         __DIR__.'/../app/Modules/Inquiries/Console',
+        __DIR__.'/../app/Modules/Leads/Console',
         __DIR__.'/../app/Modules/Site/Console',
     ])
     ->withMiddleware(function (Middleware $middleware): void {

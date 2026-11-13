@@ -2,6 +2,8 @@
 import { data } from '@/app/state'
 
 defineProps<{ current: string }>()
+/** ?solo — показ одному застройщику: без переключателя на чужие ЖК (их данные ему не показываем) */
+const solo = new URLSearchParams(location.search).has('solo')
 function go(slug: string) {
   const u = new URL(location.href)
   u.searchParams.set('p', slug)
@@ -10,7 +12,7 @@ function go(slug: string) {
 </script>
 
 <template>
-  <label v-if="data.projects.value.length > 1" class="sw">
+  <label v-if="!solo && data.projects.value.length > 1" class="sw">
     <select :value="current" aria-label="Жилой комплекс" @change="go(($event.target as HTMLSelectElement).value)">
       <option v-for="p in data.projects.value" :key="p.slug" :value="p.slug">ЖК {{ p.name }} · {{ p.developer }}</option>
     </select>
