@@ -25,6 +25,42 @@ export interface Unit {
   room_list?: { name: string; area: number }[]
 }
 
+/** Паркинг ЖК (GET /projects/{slug}/parking): уровни с геометрией в ENU и машино-места; статусы — из CRM, как у квартир */
+export type SpotKind = 'standard' | 'wide' | 'ev' | 'mgn'
+
+export interface ParkingSpot {
+  id: number
+  code: string // "1-045": уровень и номер
+  number: number
+  level: number // −1, −2 …
+  kind: SpotKind
+  area: number
+  polygon: Point[]
+  status: UnitStatus
+  price: number | null // сумы; null у проданных и снятых
+  test: boolean
+}
+
+export interface ParkingLevel {
+  level: number
+  name: string
+  height: number
+  outline: Point[]
+  cores: { block: string; label: string; p: Point[] }[]
+  ramps: { label: string; p: Point[]; entry: Point | null }[]
+  /** колонны каркаса 0,5 × 0,5 м */
+  columns: Point[][]
+  total: number
+  available: number
+}
+
+export interface Parking {
+  test: boolean
+  summary: { levels: number; total: number; by_status: Record<UnitStatus, number>; price_from: number | null }
+  levels: ParkingLevel[]
+  spots: ParkingSpot[]
+}
+
 /** Реальная планировка квартиры из каталога застройщика */
 export interface ApartmentType {
   code: string

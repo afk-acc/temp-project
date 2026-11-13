@@ -6,6 +6,8 @@ use App\Modules\Identity\Http\AuthController;
 use App\Modules\Inquiries\Http\PublicInquiryController;
 use App\Modules\Leads\Http\CrmLeadController;
 use App\Modules\Leads\Http\PublicLeadController;
+use App\Modules\Parking\Http\CrmParkingController;
+use App\Modules\Parking\Http\PublicParkingController;
 use App\Modules\Sales\Http\CrmUnitController;
 use App\Modules\Site\Http\SiteController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +23,7 @@ Route::prefix('projects')->controller(PublicCatalogController::class)->group(fun
     Route::get('{slug}/apartment-types', 'apartmentTypes');
     Route::get('{slug}/types/{file}', 'typeImage')->where('file', '[A-Za-z0-9-]+\.png');
 });
+Route::get('projects/{slug}/parking', PublicParkingController::class);
 Route::get('brands/{file}', [PublicCatalogController::class, 'brand'])->where('file', '[a-z0-9-]+\.(svg|png)');
 Route::post('leads', [PublicLeadController::class, 'store'])->middleware('throttle:10,1');
 
@@ -43,5 +46,11 @@ Route::prefix('crm')->group(function () {
         Route::post('units/bulk', [CrmUnitController::class, 'bulk']);
         Route::get('units/{unit}/history', [CrmUnitController::class, 'history']);
         Route::patch('leads/{lead}', [CrmLeadController::class, 'update']);
+
+        // паркинг: план уровней, правка места, пачкой, история
+        Route::get('projects/{slug}/parking', [CrmParkingController::class, 'index']);
+        Route::patch('parking-spots/{spot}', [CrmParkingController::class, 'update']);
+        Route::post('parking-spots/bulk', [CrmParkingController::class, 'bulk']);
+        Route::get('parking-spots/{spot}/history', [CrmParkingController::class, 'history']);
     });
 });

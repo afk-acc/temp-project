@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { Context, Point } from '@/domain/types'
+import type { GroundQuery } from './context'
 
 /**
  * Атмосфера сцены: снег и мокрый асфальт на материалах, свет в окнах, осадки, облака, звёзды, фонари.
@@ -465,7 +466,8 @@ export class StreetLamps {
   private static HEAD_ON = new THREE.Color(1.0, 0.72, 0.42).multiplyScalar(4)
   private static HEAD_OFF = new THREE.Color(0x8a8a86)
 
-  constructor(ctx: Context, site: Point[], poleMat: THREE.Material) {
+  /** ground — проверки из context.ts: фонари не встают на асфальт, а во двор ЖК — только по его краю */
+  constructor(ctx: Context, site: Point[], poleMat: THREE.Material, ground?: GroundQuery) {
     this.group.name = 'lamps'
     const spots: { x: number; y: number; h: number; r: number }[] = []
     const avenues = new Set(['primary', 'secondary', 'tertiary', 'trunk', 'residential', 'living_street', 'service'])
@@ -487,7 +489,8 @@ export class StreetLamps {
           const off = r.w / 2 + 1.0
           const x = ax + ((bx - ax) * t) / len + nx * off * side
           const y = ay + ((by - ay) * t) / len + ny * off * side
-          if (Math.hypot(x, y) < 900) spots.push({ x, y, h: small ? 5 : 8, r: small ? 9 : 13 })
+          const free = !ground || (!ground.inYard(x, y) && !ground.onRoad(x, y))
+          if (Math.hypot(x, y) < 900 && free) spots.push({ x, y, h: small ? 5 : 8, r: small ? 9 : 13 })
           side = -side
           t += step
         }
@@ -500,7 +503,11 @@ export class StreetLamps {
       const [ax, ay] = ring[i]
       const [bx, by] = ring[(i + 1) % ring.length]
       const len = Math.hypot(bx - ax, by - ay)
-      for (let t = 4; t < len; t += 11) spots.push({ x: ax + ((bx - ax) * t) / len, y: ay + ((by - ay) * t) / len, h: 3.2, r: 6.5 })
+      for (let t = 4; t < len; t += 11) {
+        const x = ax + ((bx - ax) * t) / len
+        const y = ay + ((by - ay) * t) / len
+        if (!ground?.onRoad(x, y)) spots.push({ x, y, h: 3.2, r: 6.5 })
+      }
     }
 
     const poleGeo = new THREE.CylinderGeometry(0.07, 0.11, 1, 6)
@@ -529,6 +536,9 @@ export class StreetLamps {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       fog: false,
+      // пятно света выше всех слоёв земли (GROUND_LAYER в materials.ts тянет их к камере до units -16)
+      polygonOffset: true,
+      polygonOffsetUnits: -24,
     })
     const pools = new THREE.InstancedMesh(poolGeo, this.poolMat, spots.length)
     pools.renderOrder = 1
@@ -539,7 +549,7 @@ export class StreetLamps {
       poles.setMatrixAt(i, m)
       m.compose(new THREE.Vector3(s.x, s.h + 0.05, -s.y), q, new THREE.Vector3(1, 1, 1))
       heads.setMatrixAt(i, m)
-      m.compose(new THREE.Vector3(s.x, 0.16, -s.y), q, new THREE.Vector3(s.r, 1, s.r))
+      m.compose(new THREE.Vector3(s.x, 0.2, -s.y), q, new THREE.Vector3(s.r, 1, s.r)) // выше газонов садов (0,16 м)
       pools.setMatrixAt(i, m)
     })
     poles.castShadow = true

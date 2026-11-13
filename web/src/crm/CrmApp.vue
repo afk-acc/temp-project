@@ -8,6 +8,8 @@ import LoginView from './components/LoginView.vue'
 import StatsBar from './components/StatsBar.vue'
 import ChessBoard from './components/ChessBoard.vue'
 import UnitEditor from './components/UnitEditor.vue'
+import ParkingBoard from './components/ParkingBoard.vue'
+import SpotEditor from './components/SpotEditor.vue'
 import LeadsTable from './components/LeadsTable.vue'
 import ActivityFeed from './components/ActivityFeed.vue'
 
@@ -38,6 +40,17 @@ async function refresh(withUnits = true) {
   crmState.stats = stats
   crmState.leads = leads.items
   if (withUnits || crmState.tab === 'board') crmState.units = (await crm.units(crmState.slug, crmState.block)).items
+  if (withUnits || crmState.tab === 'parking') await loadParking()
+}
+
+async function loadParking() {
+  if (!project.value?.parking_levels) {
+    crmState.parking = null
+    if (crmState.tab === 'parking') crmState.tab = 'board'
+    return
+  }
+  crmState.parking = await crm.parking(crmState.slug)
+  if (!crmState.parking.levels.some((l) => l.level === crmState.parkingLevel)) crmState.parkingLevel = crmState.parking.levels[0]?.level ?? null
 }
 
 watch(() => crmState.slug, async (slug) => {
@@ -45,6 +58,8 @@ watch(() => crmState.slug, async (slug) => {
   crmState.block = project.value?.blocks[0]?.id ?? null
   crmState.selectedId = null
   crmState.picked.clear()
+  crmState.spotId = null
+  crmState.spotPicked.clear()
   const u = new URL(location.href)
   u.searchParams.set('p', slug)
   history.replaceState(null, '', u)
@@ -78,6 +93,7 @@ async function logout() {
         </select>
         <nav class="tabs">
           <button :class="{ on: crmState.tab === 'board' }" @click="crmState.tab = 'board'">Шахматка</button>
+          <button v-if="project?.parking_levels" :class="{ on: crmState.tab === 'parking' }" @click="crmState.tab = 'parking'">Паркинг</button>
           <button :class="{ on: crmState.tab === 'leads' }" @click="crmState.tab = 'leads'">
             Заявки <i v-if="crmState.stats?.leads_new" class="badge">{{ crmState.stats.leads_new }}</i>
           </button>
@@ -95,6 +111,10 @@ async function logout() {
       <main v-if="crmState.tab === 'board'" class="main">
         <ChessBoard @changed="refresh" />
         <UnitEditor @changed="refresh" />
+      </main>
+      <main v-else-if="crmState.tab === 'parking'" class="main">
+        <ParkingBoard @changed="refresh" />
+        <SpotEditor @changed="refresh" />
       </main>
       <main v-else-if="crmState.tab === 'leads'" class="main single">
         <LeadsTable @changed="refresh" />

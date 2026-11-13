@@ -1,5 +1,6 @@
 import { computed, reactive, shallowRef } from 'vue'
-import type { ApartmentType, BlockLayout, Context, FloorInfo, FloorType, PlaceCategory, Project, ProjectIndexItem, Unit, UnitStatus } from '@/domain/types'
+import type { ApartmentType, BlockLayout, Context, FloorInfo, FloorType, Parking, PlaceCategory, Project, ProjectIndexItem, Unit, UnitStatus } from '@/domain/types'
+import type { SpotFilter } from '@/domain/parking'
 import { matchesFilter, type UnitFilter } from '@/domain/units'
 import type { Mode, SunHours } from '@/scene/Engine'
 import { seasonDay, seasonOf, type Season, type Weather } from '@/domain/atmosphere'
@@ -38,6 +39,8 @@ export const state = reactive({
   viewSide: 0,
   blockSun: null as SunHours[] | null,
   places: { on: true, all: false, cats: ['metro', 'shop', 'bank', 'food', 'edu', 'health', 'sport', 'auto'] as PlaceCategory[] },
+  // паркинг: уровень, выбранное и наведённое место, фильтр по типу и "только свободные"
+  parking: { level: null as number | null, spotId: null as number | null, hoverSpot: null as number | null, filter: { kinds: [], onlyAvailable: false } as SpotFilter },
 })
 
 export const data = {
@@ -50,6 +53,8 @@ export const data = {
   blockLayouts: shallowRef<Map<string, BlockLayout>>(new Map()),
   /** Реальные планировки застройщика (код типа → чертёж и комнаты); есть не у всех ЖК */
   aptTypes: shallowRef<Map<string, ApartmentType>>(new Map()),
+  /** Паркинг ЖК: уровни и места со статусами из CRM; null — паркинга нет */
+  parking: shallowRef<Parking | null>(null),
 }
 
 export const isMassing = computed(() => data.project.value?.building.mode === 'massing')
@@ -64,6 +69,11 @@ export const scopeUnits = computed(() => (isMassing.value ? data.units.value.fil
 export const isTestData = computed(() => data.units.value.some((u) => u.test))
 /** Статусы приходят из CRM застройщика (Laravel), а не из статичного снимка */
 export const isLive = computed(() => data.units.value.some((u) => u.source === 'crm'))
+
+export const hasParking = computed(() => (data.parking.value?.levels.length ?? 0) > 0)
+export const parkingLevel = computed(() => data.parking.value?.levels.find((l) => l.level === state.parking.level) ?? null)
+export const selectedSpot = computed(() => data.parking.value?.spots.find((s) => s.id === state.parking.spotId) ?? null)
+export const hoveredSpot = computed(() => data.parking.value?.spots.find((s) => s.id === state.parking.hoverSpot) ?? null)
 
 export const selectedBlock = computed(() => data.project.value?.building.blocks?.find((b) => b.id === state.blockId) ?? null)
 

@@ -1,4 +1,4 @@
-import type { ApartmentType, BlockLayout, Context, FloorType, Project, ProjectIndexItem, UnitsResponse } from '@/domain/types'
+import type { ApartmentType, BlockLayout, Context, FloorType, Parking, Project, ProjectIndexItem, UnitsResponse } from '@/domain/types'
 import { BASE, get, send } from './http'
 
 /**
@@ -21,11 +21,12 @@ export const api = {
   context: (slug: string) => get<Context>(`/projects/${slug}/context`),
   block: (slug: string, id: string) => get<BlockLayout>(`/projects/${slug}/blocks/${id}`),
   apartmentTypes: (slug: string) => get<{ items: ApartmentType[] }>(`/projects/${slug}/apartment-types`),
+  parking: (slug: string) => get<Parking>(`/projects/${slug}/parking`),
   floorType(slug: string, id: string): Promise<FloorType> {
     const key = `${slug}/${id}`
     if (!floorTypeCache.has(key)) floorTypeCache.set(key, get<FloorType>(`/projects/${slug}/floor-types/${id}`))
     return floorTypeCache.get(key)!
   },
-  lead: (body: { project: string; unit_id?: number | null; name: string; phone: string; comment?: string }) =>
+  lead: (body: { project: string; unit_id?: number | null; parking_spot_id?: number | null; name: string; phone: string; comment?: string }) =>
     send<{ id: number; status: string }>('POST', '/leads', body),
 }

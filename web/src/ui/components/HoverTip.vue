@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { data, floorStats, hoveredUnit, isMassing, state } from '@/app/state'
+import { data, floorStats, hoveredSpot, hoveredUnit, isMassing, state } from '@/app/state'
 import { STATUS_COLOR, STATUS_LABEL } from '@/domain/units'
-import { formatArea } from '@/domain/format'
+import { formatArea, formatSum } from '@/domain/format'
+import { KIND_LABEL, SPOT_STATUS_LABEL } from '@/domain/parking'
 
 const floor = computed(() => (state.mode === 'building' && state.hoverFloor !== null ? floorStats.value.find((f) => f.n === state.hoverFloor) : null))
 const block = computed(() => (state.hoverBlock ? data.project.value?.building.blocks?.find((b) => b.id === state.hoverBlock) ?? null : null))
 const unit = computed(() => (state.mode === 'floor' && state.unitId !== state.hoverUnit ? hoveredUnit.value : null))
+const spot = computed(() => (state.mode === 'parking' && state.parking.spotId !== state.parking.hoverSpot ? hoveredSpot.value : null))
 </script>
 
 <template>
-  <div v-if="floor || unit || block" class="tip glass" :style="{ left: `${state.tip.x + 16}px`, top: `${state.tip.y + 16}px` }">
+  <div v-if="floor || unit || block || spot" class="tip glass" :style="{ left: `${state.tip.x + 16}px`, top: `${state.tip.y + 16}px` }">
     <template v-if="floor">
       <b>{{ floor.n }} этаж</b>
       <span v-if="floor.residential">в продаже {{ floor.available }} из {{ floor.total }}</span>
@@ -19,6 +21,10 @@ const unit = computed(() => (state.mode === 'floor' && state.unitId !== state.ho
     <template v-else-if="block">
       <b>{{ block.label }}</b>
       <span>{{ block.levels }} этажей · {{ block.address }}</span>
+    </template>
+    <template v-else-if="spot">
+      <b>Место {{ spot.code }} · {{ KIND_LABEL[spot.kind].toLowerCase() }}</b>
+      <span :style="{ color: STATUS_COLOR[spot.status] }">{{ SPOT_STATUS_LABEL[spot.status] }}<template v-if="spot.price"> · {{ formatSum(spot.price) }}</template></span>
     </template>
     <template v-else-if="unit">
       <b>№ {{ unit.number }} · {{ unit.rooms }}-комн. · {{ formatArea(unit.area) }}</b>

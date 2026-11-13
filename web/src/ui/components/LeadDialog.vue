@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { api, ApiError } from '@/api/client'
-import { data, selectedBlock, selectedUnit } from '@/app/state'
+import { data, selectedBlock, selectedSpot, selectedUnit, state } from '@/app/state'
+import { levelLabel } from '@/domain/parking'
 defineEmits<{ close: [] }>()
 
 /** sent — заявка сохранена в CRM; demo — бэкенда нет (статичная выкладка), показываем, как это работает */
@@ -10,7 +11,10 @@ const name = ref('')
 const phone = ref('+998 ')
 const error = ref('')
 const busy = ref(false)
+/** заявка из паркинга — на место, иначе — на квартиру */
+const spot = computed(() => (state.mode === 'parking' ? selectedSpot.value : null))
 const where = computed(() => {
+  if (spot.value) return `Паркинг · уровень ${levelLabel(spot.value.level)} · место ${spot.value.code}`
   const u = selectedUnit.value
   if (!u) return ''
   return `${selectedBlock.value ? `${selectedBlock.value.label} · ` : ''}${u.floor} этаж · квартира № ${u.number}`
@@ -22,7 +26,10 @@ async function submit() {
   error.value = ''
   busy.value = true
   try {
-    await api.lead({ project: p.slug, unit_id: selectedUnit.value?.id ?? null, name: name.value.trim(), phone: phone.value })
+    await api.lead({
+      project: p.slug, name: name.value.trim(), phone: phone.value,
+      ...(spot.value ? { parking_spot_id: spot.value.id } : { unit_id: selectedUnit.value?.id ?? null }),
+    })
     result.value = 'sent'
   } catch (e) {
     if (e instanceof ApiError && e.status === 422) error.value = e.firstMessage
@@ -44,11 +51,11 @@ async function submit() {
         <label>Телефон<input v-model="phone" required inputmode="tel" autocomplete="tel" /></label>
         <div v-if="error" class="err">{{ error }}</div>
         <button class="btn primary" type="submit" :disabled="busy">{{ busy ? 'Отправляем…' : 'Отправить' }}</button>
-        <p class="note">Имя и телефон получит только отдел продаж — чтобы перезвонить по этой квартире.</p>
+        <p class="note">Имя и телефон получит только отдел продаж — чтобы перезвонить по {{ spot ? 'этому месту' : 'этой квартире' }}.</p>
       </template>
       <template v-else-if="result === 'sent'">
         <h2>Заявка отправлена</h2>
-        <p class="txt">Менеджер получил её вместе с номером квартиры и этажом и перезвонит вам.</p>
+        <p class="txt">Менеджер получил её вместе с {{ spot ? 'номером места и уровнем паркинга' : 'номером квартиры и этажом' }} и перезвонит вам.</p>
         <button class="btn" type="button" @click="$emit('close')">Хорошо</button>
       </template>
       <template v-else>

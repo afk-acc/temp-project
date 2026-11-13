@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { data, isLive, isTestData, selectedBlock, state } from '@/app/state'
+import { data, hasParking, isLive, isTestData, selectedBlock, state } from '@/app/state'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
-import { formatDuration, formatDate } from '@/domain/format'
+import { formatDuration, formatDate, formatSum, plural } from '@/domain/format'
 import type { BlockSide } from '@/scene/massing'
 import type { PlaceCategory } from '@/domain/types'
 
 const props = defineProps<{ sides: BlockSide[] }>()
-const emit = defineEmits<{ close: []; view: []; floor: [n: number]; places: []; 'open-floor': [] }>()
+const emit = defineEmits<{ close: []; view: []; floor: [n: number]; places: []; 'open-floor': []; parking: [] }>()
+const pk = computed(() => data.parking.value?.summary ?? null)
 
 const project = computed(() => data.project.value!)
 const blocks = computed(() => project.value.building.blocks ?? [])
@@ -96,6 +97,15 @@ void props
       <p v-else class="note">Выберите корпус и этаж — откроется план с квартирами, их статусом и прогулкой внутри. <b class="warn">Планировки, статусы и цены — тестовые</b>: настоящих планов застройщика в открытом доступе нет.</p>
     </template>
 
+    <button v-if="hasParking && pk" class="pk-card" @click="emit('parking')">
+      <span class="pk-ico" aria-hidden="true">P</span>
+      <span class="pk-t">
+        <b>Паркинг · {{ pk.levels }} {{ plural(pk.levels, 'уровень', 'уровня', 'уровней') }} под домами</b>
+        <small>{{ pk.by_status.available }} свободно из {{ pk.total }}<template v-if="pk.price_from"> · от {{ formatSum(pk.price_from) }}</template></small>
+      </span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+
     <div class="near">
       <div class="near-head">
         <div class="eyebrow">Рядом{{ selectedBlock ? ` с корпусом ${selectedBlock.n}` : '' }}</div>
@@ -146,6 +156,12 @@ h2 { font-size: 20px; margin: 6px 0 12px; font-weight: 800; letter-spacing: -0.0
 .btn:disabled { opacity: .5; cursor: default; }
 .wide2 { width: 100%; margin-top: 10px; }
 .near { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.pk-card { width: 100%; margin-top: 14px; display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; text-align: left; }
+.pk-card:hover { border-color: var(--accent); background: rgba(211,154,104,.12); }
+.pk-ico { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: #2f6fde; color: #fff; font-weight: 900; font-size: 18px; }
+.pk-t { display: grid; gap: 2px; }
+.pk-t b { font-size: 13px; }
+.pk-t small { font-size: 12px; color: var(--muted); }
 .near-head { display: flex; justify-content: space-between; align-items: center; }
 .cats { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
 .cat { height: 26px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--line-strong); background: transparent; color: var(--faint); }

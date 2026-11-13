@@ -15,6 +15,7 @@
 | GET | `/api/projects/{slug}/blocks/{id}` | `projects/{slug}/blocks/{id}.json` | `block_layouts` — этажи корпуса (режим massing) |
 | GET | `/api/projects/{slug}/apartment-types` | `projects/{slug}/apartment-types.json` | `apartment_types` — реальные планировки (есть не у всех ЖК) |
 | GET | `/api/projects/{slug}/types/{code}.png` | `projects/{slug}/types/{code}.png` | чертёж планировки из каталога |
+| GET | `/api/projects/{slug}/parking` | `projects/{slug}/parking.json` (если паркинг есть) | `parking_levels`, `parking_spots` — уровни и места |
 | POST | `/api/leads` | — (на статике 404/405 → фронт показывает демо-сообщение) | `leads` — заявка в CRM |
 | GET | `/api/site?lang=ru\|uz` | — | `site_contents`, `site_settings` — тексты, контакты, ссылка на демо |
 | GET | `/api/site/media/{file}` | — | хранилище `media/site/` — картинки сайта |
@@ -83,6 +84,34 @@ CRM (`/api/crm/...`, под сессией менеджера) в этот до�
 // 201 → { "id": 1, "status": "new" };  422 → { "message": "…", "errors": { "phone": ["Номер в формате +998 XX XXX XX XX"] } }
 // 429 — больше 10 заявок в минуту с одного адреса
 ```
+
+## Parking (GET /api/projects/{slug}/parking)
+
+Паркинг ЖК: уровни (−1, −2 …) с геометрией в мировых координатах (ENU, метры) и машино-места. Статусы — те же, что у квартир,
+меняются в CRM; цена проданного и снятого места не отдаётся. Если паркинга нет — `summary.total: 0`, пустые `levels` и `spots`.
+
+```jsonc
+{
+  "test": true,                                   // есть места со стартовыми тестовыми статусами
+  "summary": { "levels": 2, "total": 336, "by_status": { "available": 140, "booked": 30, "sold": 150, "unavailable": 16 }, "price_from": 138000000 },
+  "levels": [{
+    "level": -1, "name": "Уровень −1", "height": 3.3, "total": 168, "available": 70,
+    "outline": [[x, y], …],                        // контур уровня
+    "cores": [{ "block": "26/1", "label": "Лифт и лестница · Блок 26/1", "p": [[x, y] ×4] }],
+    "ramps": [{ "label": "Въезд с улицы", "p": [[x, y] ×4], "entry": [x, y] | null }],   // entry — въезд с улицы (только у −1)
+    "columns": [[[x, y] ×4], …]                  // колонны каркаса 0,5 × 0,5 м по краю проездов
+  }],
+  "spots": [{
+    "id": 12, "code": "1-045", "number": 45, "level": -1,
+    "kind": "standard",                           // standard | wide (3 м) | ev (с зарядкой) | mgn (для маломобильных, 3,6 м)
+    "area": 13.25, "polygon": [[x, y] ×4],
+    "status": "available", "price": 150000000,    // сумы; null у проданных и снятых
+    "test": true
+  }]
+}
+```
+
+Заявка на место — `POST /api/leads` с `parking_spot_id` вместо (или вместе с) `unit_id`.
 
 ## FloorType
 

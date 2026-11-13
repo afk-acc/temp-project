@@ -3,6 +3,8 @@
 namespace App\Modules\Catalog\Console;
 
 use App\Modules\Catalog\Application\PublicCatalog;
+use App\Modules\Parking\Application\LoadParking;
+use App\Modules\Parking\Http\Resources\ParkingResource;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +20,7 @@ class ExportStaticCommand extends Command
 
     protected $description = 'Выгрузить публичный API выбранных ЖК файлами для статической выкладки';
 
-    public function handle(PublicCatalog $catalog): int
+    public function handle(PublicCatalog $catalog, LoadParking $parking): int
     {
         $to = rtrim((string) $this->option('to'), '/');
         if ($to === '') {
@@ -46,6 +48,10 @@ class ExportStaticCommand extends Command
             }
             if ($p->apartmentTypes()->exists()) {
                 $write("projects/$slug/apartment-types.json", $catalog->apartmentTypes($p));
+            }
+            $levels = $parking($p);
+            if ($levels->isNotEmpty()) {
+                $write("projects/$slug/parking.json", (new ParkingResource($levels))->resolve());
             }
             $this->copyDir("media/projects/$slug/types", "$to/projects/$slug/types");
             $this->info("$slug: {$p->units()->count()} квартир");

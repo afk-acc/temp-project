@@ -16,6 +16,7 @@ class StoreLeadRequest extends FormRequest
         return [
             'project' => ['required', 'string', 'exists:projects,slug'],
             'unit_id' => ['nullable', 'integer'],
+            'parking_spot_id' => ['nullable', 'integer'],
             'name' => ['required', 'string', 'min:2', 'max:120'],
             // узбекские номера: +998 и 9 цифр (пробелы, скобки и дефисы допускаются)
             'phone' => ['required', 'string', 'regex:/^\+?(998)?[\s\-()]*(\d[\s\-()]*){9}$/'],

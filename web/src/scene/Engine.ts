@@ -13,7 +13,7 @@ import { layoutUnit, type UnitLayout } from '@/domain/rooms'
 import { distToPolygon } from '@/domain/units'
 import { furnish, type Furnished } from './interior/furnish'
 import { styleKit, type InteriorStyle } from './interior/styles'
-import type { BlockLayout, Context, FloorType, Place, PlaceCategory, Point, Project, Rect, Unit } from '@/domain/types'
+import type { BlockLayout, Context, FloorType, Parking, Place, PlaceCategory, Point, Project, Rect, Unit } from '@/domain/types'
 import { PLACE_CATEGORY, walkLabel } from '@/domain/places'
 import { apiAsset } from '@/api/client'
 import type { UnitFilter } from '@/domain/units'
@@ -26,8 +26,10 @@ import { createMaterials, type Materials } from './materials'
 import { WalkController, pushOut } from './walk'
 import { XRController } from './xr'
 import { MassingView, floorElevation } from './massing'
+import { ParkingView } from './parking'
+import type { SpotFilter } from '@/domain/parking'
 
-export type Mode = 'building' | 'floor' | 'walk' | 'block' | 'view'
+export type Mode = 'building' | 'floor' | 'walk' | 'block' | 'view' | 'parking'
 
 export interface EngineEvents {
   hoverFloor(n: number | null, x: number, y: number): void
@@ -36,6 +38,10 @@ export interface EngineEvents {
   clickUnit(id: number): void
   hoverBlock(id: string | null, x: number, y: number): void
   clickBlock(id: string): void
+  hoverSpot(id: number | null, x: number, y: number): void
+  clickSpot(id: number): void
+  /** клик по знаку "P" у въезда */
+  clickParking(): void
   interacted(): void
   xrEnded(): void
 }
@@ -60,6 +66,12 @@ export class Engine {
   private labels = new CSS2DRenderer()
   private placeObjs: { obj: CSS2DObject; place: Place }[] = []
   private lastHoverBlock: string | null = null
+  private lastHoverSpot: number | null = null
+  private parking: ParkingView | null = null
+  private contextGroup: THREE.Group | null = null
+  /** фон режима паркинга: ровный тёмный, без неба */
+  private parkingBg = new THREE.Color(0x15181d)
+  private placeFilter: [PlaceCategory[], boolean, boolean] | null = null
   private blockViews = new Map<string, BuildingView>()
   private openBlockId: string | null = null
   private occluders: THREE.Mesh | null = null
@@ -122,7 +134,7 @@ export class Engine {
     canvasHost.appendChild(this.labels.domElement)
     this.renderer.domElement.style.touchAction = 'none'
 
-    this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 6000)
+    this.camera = new THREE.PerspectiveCamera(38, 1, OVERVIEW_NEAR, 6000)
     this.rig.add(this.camera)
     this.scene.add(this.rig)
     this.mat = createMaterials()
@@ -229,10 +241,12 @@ export class Engine {
     if (pal?.band) this.mat.band.color.set(pal.band)
     if (pal?.glass) this.mat.glass.color.set(pal.glass)
     let site: Point[]
+    let footprints: Point[][]
     if (project.building.mode === 'massing') {
       this.massing = new MassingView(project, this.mat)
       this.scene.add(this.massing.root)
-      site = hull(this.massing.blocks.flatMap((b) => b.footprint))
+      footprints = this.massing.blocks.map((b) => b.footprint)
+      site = hull(footprints.flat())
     } else {
       this.building = new BuildingView(project, types, this.mat)
       this.scene.add(this.building.root)
@@ -242,12 +256,14 @@ export class Engine {
       site = [[pod[0], pod[1]], [pod[2], pod[1]], [pod[2], pod[3]], [pod[0], pod[3]]].map(
         ([x, y]) => planToENU(x, y, az) as Point,
       )
+      footprints = [site]
     }
-    const { group, occluders, trees } = buildContext(ctx, this.mat, site)
+    const { group, occluders, trees, ground } = buildContext(ctx, this.mat, site, footprints)
     this.occluders = occluders
     this.trees = trees
+    this.contextGroup = group
     this.scene.add(group)
-    this.lamps = new StreetLamps(ctx, site, this.mat.lampPole)
+    this.lamps = new StreetLamps(ctx, site, this.mat.lampPole, ground)
     this.scene.add(this.lamps.group)
     this.scene.add(this.sunPath)
     this.sunPathDay = ''
@@ -282,16 +298,18 @@ export class Engine {
     t.snowCover = season === 'winter' || weather === 'snow' ? (weather === 'rain' ? 0.35 : 1) : 0
     t.wet = weather === 'rain' ? 1 : season === 'winter' && weather !== 'snow' ? 0.2 : 0
     this.trees?.setSeason(season)
-    const SEASON_COLORS: Record<Season, [number, number, number]> = {
-      winter: [0xb8b2a6, 0x8d8a6c, 0x7d876a],
-      spring: [0xbdb9a0, 0x86b35c, 0x6fa060],
-      summer: [0xc9c2b4, 0x8aa66a, 0x6f9a6a],
-      autumn: [0xc6b9a0, 0xa59a5e, 0x86915e],
+    // земля, зелень OSM, спортплощадки, газоны садов во дворе
+    const SEASON_COLORS: Record<Season, [number, number, number, number]> = {
+      winter: [0xb8b2a6, 0x8d8a6c, 0x7d876a, 0x92906f],
+      spring: [0xbdb9a0, 0x86b35c, 0x6fa060, 0x8fbf60],
+      summer: [0xc9c2b4, 0x8aa66a, 0x6f9a6a, 0x93b86a],
+      autumn: [0xc6b9a0, 0xa59a5e, 0x86915e, 0xa7a565],
     }
-    const [ground, green, pitch] = SEASON_COLORS[season]
+    const [ground, green, pitch, lawn] = SEASON_COLORS[season]
     this.mat.ground.color.set(ground)
     this.mat.green.color.set(green)
     this.mat.pitch.color.set(pitch)
+    this.mat.lawn.color.set(lawn)
   }
 
   /** Свет, небо, туман, окна и фонари из положения солнца и текущей погоды (каждый кадр — это дёшево) */
@@ -335,7 +353,8 @@ export class Engine {
     cu.uShade.value.copy(cu.uLight.value).multiplyScalar(0.5 - 0.15 * rain)
     cu.uHorizon.value.copy(fog.color)
     cu.uSunDir.value.copy(this.sunDir)
-    this.skyLayers.setStars((1 - S(alt, -14, -3)) * (1 - cover) ** 2, this.renderer.getPixelRatio())
+    // в паркинге звёзд нет: фон ровный
+    this.skyLayers.setStars(this.mode === 'parking' ? 0 : (1 - S(alt, -14, -3)) * (1 - cover) ** 2, this.renderer.getPixelRatio())
 
     // свет: окна зажигаются в сумерках и в пасмурную погоду, фонари — после заката
     this.lightsOn = THREE.MathUtils.clamp(1 - S(alt, -3, 7) + 0.2 * cover * day01, 0, 1)
@@ -345,6 +364,21 @@ export class Engine {
     this.bloom.strength = 0.1 + 0.38 * this.lightsOn
     // в квартире светлые стены не должны «светиться» — порог выше
     this.bloom.threshold = THREE.MathUtils.lerp(1.5, this.mode === 'walk' ? 1.3 : 0.9, this.lightsOn)
+
+    // паркинг под землёй: ровный нейтральный свет, не зависит от часа и погоды; без дымки
+    if (this.mode === 'parking') {
+      // отражения неба выключены: ночное небо делало бы паркинг тусклым — свет только свой
+      this.sun.intensity = 1.9
+      this.sun.color.setRGB(1, 0.98, 0.95)
+      this.hemi.intensity = 1.55
+      this.hemi.color.setRGB(0.93, 0.95, 0.98)
+      this.scene.environmentIntensity = 0
+      this.renderer.toneMappingExposure = 0.85
+      fog.near = 1e5
+      fog.far = 2e5
+      this.bloom.strength = 0.08
+      this.bloom.threshold = 1.4
+    }
 
     // свет в квартире при прогулке
     const room = this.mode === 'walk' ? this.lightsOn : 0
@@ -597,6 +631,7 @@ export class Engine {
   }
 
   flyToBuilding(instant = false) {
+    this.leaveParking()
     if (this.massing) {
       this.leaveWalk()
       this.closeBlockBuilding()
@@ -856,7 +891,8 @@ export class Engine {
 
   selectBlock(id: string, floor: number | null) {
     if (!this.massing) return
-    const wasView = this.mode === 'view' || this.mode === 'floor' || this.mode === 'walk'
+    const wasView = this.mode === 'view' || this.mode === 'floor' || this.mode === 'walk' || this.mode === 'parking'
+    this.leaveParking()
     this.leaveWalk()
     this.closeBlockBuilding()
     this.mode = 'block'
@@ -997,8 +1033,88 @@ export class Engine {
   }
 
   setPlaceFilter(cats: PlaceCategory[], showAll: boolean, visible: boolean) {
+    this.placeFilter = [cats, showAll, visible]
+    const on = visible && this.mode !== 'parking' // под землёй метки мест не нужны
     for (const { obj, place } of this.placeObjs) {
-      obj.visible = visible && cats.includes(place.category) && (showAll || place.known)
+      obj.visible = on && cats.includes(place.category) && (showAll || place.known)
+    }
+  }
+
+  // ---------- паркинг ----------
+
+  /** Паркинг ЖК (если есть): уровни под корпусами и знак "P" у въезда */
+  loadParking(p: Parking) {
+    if (!p.levels.length) return
+    this.parking = new ParkingView(p, () => this.events.clickParking())
+    this.scene.add(this.parking.root)
+    if (this.parking.marker) this.scene.add(this.parking.marker)
+  }
+
+  get parkingLevels(): number[] {
+    return this.parking?.levelNumbers ?? []
+  }
+
+  /** Режим паркинга: виден только выбранный уровень — без домов, окружения и неба, на ровном фоне */
+  showParking(level: number) {
+    if (!this.parking) return
+    const was = this.mode === 'parking'
+    const prevY = was ? this.controls.target.y : 0
+    this.leaveWalk()
+    this.closeBlockBuilding()
+    this.massing?.select(null, null)
+    this.mode = 'parking'
+    this.setShadowRange('building')
+    this.applyViewShift()
+    this.controls.autoRotate = false
+    this.setXray(true)
+    this.parking.show(level)
+    const { center, radius } = this.parking.frame(level)
+    if (was) {
+      // другой уровень — камера опускается или поднимается вместе с ним
+      const dy = center.y - prevY
+      this.moveCamera(this.camera.position.clone().setY(this.camera.position.y + dy), this.controls.target.clone().setY(center.y), 0.6)
+    } else {
+      const portrait = this.canvasHost.clientWidth < this.canvasHost.clientHeight
+      const k = Math.max(radius * 2.6, 100) * (portrait ? 2.1 : 1)
+      const pos = center.clone().add(new THREE.Vector3(0.3 * k, 0.78 * k, 0.55 * k))
+      // на широком экране справа панель паркинга — сдвигаем кадр, чтобы уровень был левее неё
+      if (!portrait) {
+        const right = new THREE.Vector3().subVectors(center, pos).cross(this.camera.up).setY(0).normalize().multiplyScalar(radius * 0.32)
+        pos.add(right)
+        center.add(right)
+      }
+      this.moveCamera(pos, center, 1.0)
+    }
+    this.controls.minDistance = 12
+  }
+
+  updateParking(spots: Parking['spots']) {
+    this.parking?.update(spots)
+  }
+
+  styleParking(filter: SpotFilter, hoverId: number | null, selectedId: number | null) {
+    this.parking?.style(filter, hoverId, selectedId)
+  }
+
+  private leaveParking() {
+    if (this.mode !== 'parking') return
+    this.parking?.hide()
+    this.setXray(false)
+  }
+
+  private setXray(on: boolean) {
+    if (this.contextGroup) this.contextGroup.visible = !on
+    if (this.lamps) this.lamps.group.visible = !on
+    if (this.massing) this.massing.root.visible = !on
+    this.precip.group.visible = !on
+    this.sky.visible = !on
+    this.skyLayers.stars.visible = !on
+    this.skyLayers.clouds.visible = !on
+    this.scene.background = on ? this.parkingBg : null
+    if (on) for (const p of this.placeObjs) p.obj.visible = false
+    else if (this.placeFilter) {
+      const [cats, all, vis] = this.placeFilter
+      for (const { obj, place } of this.placeObjs) obj.visible = vis && cats.includes(place.category) && (all || place.known)
     }
   }
 
@@ -1018,7 +1134,7 @@ export class Engine {
     this.roomLamps.visible = false
     for (const l of this.roomLights) l.intensity = 0
     this.controls.enabled = true
-    this.camera.near = 0.1
+    this.camera.near = OVERVIEW_NEAR
     this.camera.fov = 38
     this.camera.rotation.order = 'XYZ'
     this.camera.updateProjectionMatrix()
@@ -1097,6 +1213,11 @@ export class Engine {
     this.down = null
     if (moved > 6 || dt > 600 || this.mode === 'walk' || this.mode === 'view') return
     this.onPointerMove(e)
+    if (this.mode === 'parking') {
+      const id = this.pickSpot()
+      if (id !== null) this.events.clickSpot(id)
+      return
+    }
     if (this.massing && (this.mode === 'building' || this.mode === 'block')) {
       const id = this.pickBlock()
       if (id) this.events.clickBlock(id)
@@ -1105,6 +1226,13 @@ export class Engine {
     const hit = this.pick()
     if (this.mode === 'building' && hit.floor !== null) this.events.clickFloor(hit.floor)
     else if (this.mode === 'floor' && hit.unit !== null) this.events.clickUnit(hit.unit)
+  }
+
+  private pickSpot(): number | null {
+    if (!this.parking) return null
+    this.raycaster.setFromCamera(this.pointer, this.camera)
+    const hit = this.raycaster.intersectObjects(this.parking.pickables(), false)[0]
+    return hit ? this.parking.spotAt(hit) : null
   }
 
   private pickBlock(): string | null {
@@ -1131,6 +1259,15 @@ export class Engine {
   private processHover() {
     if (!this.pointerDirty) return
     this.pointerDirty = false
+    if (this.mode === 'parking') {
+      const id = this.pointerInside ? this.pickSpot() : null
+      if (id !== this.lastHoverSpot) {
+        this.lastHoverSpot = id
+        this.renderer.domElement.style.cursor = id !== null ? 'pointer' : ''
+      }
+      this.events.hoverSpot(id, this.pointerScreen.x, this.pointerScreen.y)
+      return
+    }
     if (this.massing && (this.mode === 'building' || this.mode === 'block')) {
       const id = this.pointerInside ? this.pickBlock() : null
       if (id !== this.lastHoverBlock) {
@@ -1180,9 +1317,12 @@ export class Engine {
       ? this.building.floorCenterWorld(this.walkFloorN)
       : this.controls.target
     this.sun.target.position.set(focus.x, this.mode === 'building' ? 0 : focus.y, focus.z)
-    this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 650)
+    // в паркинге свет всегда сверху (как от потолочных ламп), а не от солнца — ночью оно под горизонтом
+    this.sun.position.copy(this.sun.target.position).addScaledVector(this.mode === 'parking' ? PARKING_LIGHT : this.sunDir, 650)
     this.stepAtmosphere(dt)
     this.updateSunPathVisibility()
+    // знак "P" у въезда — только в обзоре комплекса и корпуса
+    if (this.parking?.marker) this.parking.marker.visible = this.mode === 'building' || this.mode === 'block'
     // в VR постобработка не работает — рисуем напрямую
     if (this.renderer.xr.isPresenting) this.renderer.render(this.scene, this.camera)
     else this.composer.render(dt)
@@ -1208,7 +1348,7 @@ export class Engine {
   private applyViewShift() {
     const w = this.canvasHost.clientWidth
     const h = this.canvasHost.clientHeight
-    const shift = w < 760 ? (this.mode === 'floor' ? 0.2 : this.mode === 'building' ? 0.08 : 0) : 0
+    const shift = w < 760 ? (this.mode === 'floor' ? 0.2 : this.mode === 'parking' ? 0.26 : this.mode === 'building' ? 0.08 : 0) : 0
     if (shift > 0) this.camera.setViewOffset(w, h, 0, h * shift, w, h)
     else this.camera.clearViewOffset()
     this.camera.updateProjectionMatrix()
@@ -1222,6 +1362,15 @@ export class Engine {
     this.renderer.dispose()
   }
 }
+
+/**
+ * Ближняя плоскость камеры в обзоре. Камера не подлетает к домам ближе 12 м (minDistance),
+ * а near = 1 вместо 0,1 даёт буферу глубины в 10 раз больше точности — слои земли не мерцают.
+ */
+const OVERVIEW_NEAR = 1
+
+/** Направление света в паркинге: сверху и чуть сбоку, чтобы колонны и машины давали короткие тени */
+const PARKING_LIGHT = new THREE.Vector3(0.25, 1, 0.35).normalize()
 
 /** Выпуклая оболочка точек (монотонная цепь) — площадка вокруг корпусов */
 function hull(pts: Point[]): Point[] {

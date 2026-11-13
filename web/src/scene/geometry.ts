@@ -239,6 +239,18 @@ export function flatPolygons(polys: Point[][], y: number): THREE.BufferGeometry 
   return g
 }
 
+/** UV в метрах мира (для плитки): u = x / size, v = север / size */
+export function worldUV(g: THREE.BufferGeometry, size: number): THREE.BufferGeometry {
+  const pos = g.getAttribute('position')
+  const uv = new Float32Array(pos.count * 2)
+  for (let i = 0; i < pos.count; i++) {
+    uv[i * 2] = pos.getX(i) / size
+    uv[i * 2 + 1] = -pos.getZ(i) / size
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  return g
+}
+
 /** Выдавленные дома окружения: стены + крыша */
 export function extrudedBuildings(list: { p: Point[]; h: number }[]): THREE.BufferGeometry {
   const b = new Builder()

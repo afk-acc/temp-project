@@ -14,7 +14,7 @@ class CrmLeadController extends Controller
     public function index(Request $request, string $slug): JsonResponse
     {
         $project = Project::query()->where('slug', $slug)->firstOrFail();
-        $q = Lead::query()->where('project_id', $project->id)->with('unit:id,number,block,floor,rooms,area')->latest()->latest('id');
+        $q = Lead::query()->where('project_id', $project->id)->with(['unit:id,number,block,floor,rooms,area', 'parkingSpot.parkingLevel:id,level'])->latest()->latest('id');
         if ($request->filled('status')) {
             $q->where('status', $request->query('status'));
         }
@@ -24,6 +24,8 @@ class CrmLeadController extends Controller
             'source' => $l->source, 'created_at' => $l->created_at?->toIso8601String(),
             'unit' => $l->unit ? ['id' => $l->unit->id, 'number' => $l->unit->number, 'block' => $l->unit->block,
                 'floor' => $l->unit->floor, 'rooms' => $l->unit->rooms, 'area' => $l->unit->area] : null,
+            'parking_spot' => $l->parkingSpot ? ['id' => $l->parkingSpot->id, 'code' => $l->parkingSpot->code,
+                'level' => $l->parkingSpot->parkingLevel->level, 'kind' => $l->parkingSpot->kind->value] : null,
         ])]);
     }
 

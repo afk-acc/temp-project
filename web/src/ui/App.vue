@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { api } from '@/api/client'
-import { activeAzimuth, activeFloors, activeLayout, activeType, data, floorStats, isLive, isMassing, scopeUnits, selectedBlock, selectedUnit, state } from '@/app/state'
+import { activeAzimuth, activeFloors, activeLayout, activeType, data, floorStats, hasParking, isLive, isMassing, scopeUnits, selectedBlock, selectedUnit, state } from '@/app/state'
 import type { FloorType } from '@/domain/types'
 import { summarizeView, unitFacades, type Facade } from '@/domain/views'
 import { Engine } from '@/scene/Engine'
@@ -16,6 +16,7 @@ import LeadDialog from './components/LeadDialog.vue'
 import LoaderScreen from './components/LoaderScreen.vue'
 import BlockRail from './components/BlockRail.vue'
 import BlockPanel from './components/BlockPanel.vue'
+import ParkingPanel from './components/ParkingPanel.vue'
 import type { BlockSide } from '@/scene/massing'
 
 let SLUG = new URLSearchParams(location.search).get('p') || ''
@@ -43,13 +44,20 @@ onMounted(async () => {
       state.tip = { x, y }
     },
     clickBlock: (id) => selectBlock(id),
+    hoverSpot: (id, x, y) => {
+      state.parking.hoverSpot = id
+      state.tip = { x, y }
+    },
+    clickSpot: (id) => selectSpot(id),
+    clickParking: () => openParking(),
   })
   try {
     state.progress = 0.05
     const index = await api.projects()
     data.projects.value = index.items
     if (!index.items.some((p) => p.slug === SLUG)) SLUG = index.items[0].slug
-    const [project, units, context] = await Promise.all([api.project(SLUG), api.units(SLUG), api.context(SLUG)])
+    // паркинга может не быть (C1, старая статическая выкладка) — тогда просто без него
+    const [project, units, context, parking] = await Promise.all([api.project(SLUG), api.units(SLUG), api.context(SLUG), api.parking(SLUG).catch(() => null)])
     document.title = `ЖК ${project.name} — 3D · Spliti`
     state.progress = 0.35
     const ids = [...new Set(project.building.floors.map((f) => f.type))]
@@ -65,11 +73,16 @@ onMounted(async () => {
     data.context.value = context
     data.types.value = types
     data.observedAt.value = units.observed_at
+    data.parking.value = parking?.levels.length ? parking : null
     // реальные планировки (чертёж и комнаты из каталога) — только у ЖК, где квартиры ссылаются на тип
     if (units.items.some((u) => u.type_code)) {
       api.apartmentTypes(SLUG).then((r) => (data.aptTypes.value = new Map(r.items.map((t) => [t.code, t])))).catch(() => {})
     }
     engine.load(project, context, types)
+    if (data.parking.value) {
+      engine.loadParking(data.parking.value)
+      engine.styleParking(state.parking.filter, null, null)
+    }
     if (import.meta.env.DEV) (window as unknown as { __engine: Engine }).__engine = engine
     engine.setSun(state.sun.day, state.sun.hour)
     engine.setAtmosphere(state.atmo.season, state.atmo.weather)
@@ -108,12 +121,25 @@ async function refreshUnits() {
       const o = old.get(u.id)
       return !o || o.status !== u.status || o.price !== u.price
     })
-    if (!changed) return
-    data.units.value = fresh
-    engine?.updateUnits(scopeUnits.value, state.filter, state.hoverUnit, state.unitId)
+    if (changed) {
+      data.units.value = fresh
+      engine?.updateUnits(scopeUnits.value, state.filter, state.hoverUnit, state.unitId)
+    }
+    await refreshParking()
   } catch { /* сеть моргнула — попробуем в следующий раз */ } finally {
     refreshing = false
   }
+}
+
+/** Статусы мест паркинга — тем же таймером, что квартиры */
+async function refreshParking() {
+  if (!hasParking.value) return
+  const fresh = await api.parking(SLUG)
+  const old = new Map(data.parking.value!.spots.map((s) => [s.id, s]))
+  if (!fresh.spots.some((s) => old.get(s.id)?.status !== s.status || old.get(s.id)?.price !== s.price)) return
+  data.parking.value = fresh
+  engine?.updateParking(fresh.spots)
+  engine?.styleParking(state.parking.filter, state.parking.hoverSpot, state.parking.spotId)
 }
 
 function onVisible() {
@@ -162,6 +188,34 @@ function selectUnit(id: number | null) {
 
 const sides = ref<BlockSide[]>([])
 
+// ---------- паркинг ----------
+
+function openParking(level?: number) {
+  if (!engine || !data.parking.value) return
+  const lv = level ?? state.parking.level ?? data.parking.value.levels[0].level
+  // выбранное место с другого уровня — снимаем выбор, карточка не должна врать
+  if (data.parking.value.spots.find((s) => s.id === state.parking.spotId)?.level !== lv) state.parking.spotId = null
+  state.parking.level = lv
+  state.mode = 'parking'
+  state.blockId = null
+  state.floor = null
+  state.unitId = null
+  state.hoverBlock = null
+  engine.showParking(lv)
+  engine.styleParking(state.parking.filter, state.parking.hoverSpot, state.parking.spotId)
+}
+
+function selectSpot(id: number | null) {
+  if (id === null) {
+    state.parking.spotId = null
+    return
+  }
+  const s = data.parking.value?.spots.find((x) => x.id === id)
+  if (!s) return
+  if (state.mode !== 'parking' || state.parking.level !== s.level) openParking(s.level)
+  state.parking.spotId = id
+}
+
 function selectBlock(id: string) {
   if (!engine) return
   // по умолчанию — жилой этаж (у корпусов с коммерцией первый этаж без квартир)
@@ -208,6 +262,8 @@ function backFromFloor() {
 }
 
 function toBuilding() {
+  state.parking.spotId = null
+  state.parking.hoverSpot = null
   state.floor = null
   state.blockId = null
   state.mode = 'building'
@@ -257,6 +313,10 @@ function onKey(e: KeyboardEvent) {
     state.showLead = false
     state.showData = false
   } else if (state.mode === 'walk' || state.mode === 'view') exitWalk()
+  else if (state.mode === 'parking') {
+    if (state.parking.spotId !== null) state.parking.spotId = null
+    else toBuilding()
+  }
   else if (state.mode === 'block') toBuilding()
   else if (state.unitId !== null) state.unitId = null
   else if (state.mode === 'floor') backFromFloor()
@@ -299,6 +359,9 @@ function recomputeSun() {
 watch(() => [state.filter.rooms.slice(), state.filter.onlyAvailable, state.hoverUnit, state.unitId] as const, () => {
   engine?.styleUnits(state.filter, state.hoverUnit, state.unitId)
 })
+watch(() => [state.parking.filter.kinds.slice(), state.parking.filter.onlyAvailable, state.parking.hoverSpot, state.parking.spotId] as const, () => {
+  engine?.styleParking(state.parking.filter, state.parking.hoverSpot, state.parking.spotId)
+})
 watch(() => state.unitId, recomputeSun)
 watch(() => state.sun.day, () => {
   recomputeSun()
@@ -337,7 +400,8 @@ const floorCount = computed(() => floorStats.value.length)
       <template v-if="isMassing">
         <BlockRail v-if="state.mode === 'building' || state.mode === 'block'" :blocks="data.project.value.building.blocks ?? []" :current="state.blockId"
                    @select="selectBlock" @hover="(id) => (state.hoverBlock = id)" />
-        <BlockPanel v-if="state.mode === 'building' || state.mode === 'block'" :sides="sides" @close="toBuilding" @view="showView" @floor="setBlockFloor" @open-floor="selectFloor(state.blockFloor)" @places="engine?.flyToPlaces()" />
+        <BlockPanel v-if="state.mode === 'building' || state.mode === 'block'" :sides="sides" @close="toBuilding" @view="showView" @floor="setBlockFloor" @open-floor="selectFloor(state.blockFloor)" @places="engine?.flyToPlaces()" @parking="openParking()" />
+        <ParkingPanel v-if="state.mode === 'parking' && hasParking" @close="toBuilding" @level="openParking" @select="selectSpot" @lead="state.showLead = true" />
         <div v-if="state.mode === 'view' && selectedBlock" class="view-hud glass">
           <button class="btn small" @click="exitWalk">
             <svg width="14" height="14" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>
