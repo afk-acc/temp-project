@@ -27,6 +27,8 @@ import { WalkController, pushOut } from './walk'
 import { XRController } from './xr'
 import { MassingView, floorElevation } from './massing'
 import { ParkingView } from './parking'
+import { RayIndex } from './rayIndex'
+import { AdaptiveQuality, type QualityMode } from './quality'
 import type { SpotFilter } from '@/domain/parking'
 
 export type Mode = 'building' | 'floor' | 'walk' | 'block' | 'view' | 'parking'
@@ -120,6 +122,14 @@ export class Engine {
   /** препятствия прогулки: стены этажа + мебель */
   private walkRects: Rect[] = []
   private gtao: GTAOPass
+  // ---------- производительность ----------
+  /** карта теней перерисовывается только при движении света или изменении сцены (см. updateShadows) */
+  private shadowDirty = true
+  private shadowKey = ''
+  private shadowAt = 0
+  /** адаптивное разрешение рендера */
+  private quality = new AdaptiveQuality(Math.min(devicePixelRatio, this.mobile ? 1.6 : 2))
+  private lastFrameAt = 0
 
   constructor(private canvasHost: HTMLElement, private events: EngineEvents) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
@@ -129,6 +139,8 @@ export class Engine {
     this.renderer.toneMappingExposure = 0.92
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    // тени обновляем сами (updateShadows): на неподвижной сцене карта 4096² не перерисовывается каждый кадр
+    this.renderer.shadowMap.autoUpdate = false
     this.renderer.xr.enabled = true
     canvasHost.appendChild(this.renderer.domElement)
     this.labels.domElement.className = 'labels-layer'
@@ -169,7 +181,9 @@ export class Engine {
     s.camera.updateProjectionMatrix()
     this.scene.add(this.sun, this.sun.target, this.hemi)
     this.scene.fog = new THREE.Fog(0xd8dde2, 900, 3200)
-    this.sky.renderOrder = -3
+    // небо — последним среди непрозрачных (глубина = дальняя плоскость): дорогой шейдер рассеяния считается
+    // только в пикселях, где неба действительно видно, а не под домами и землёй
+    this.sky.renderOrder = 100
     this.scene.add(this.skyLayers.stars, this.skyLayers.clouds, this.precip.group)
     this.skyScene.add(this.skyLayers.cloudsEnv)
 
@@ -193,6 +207,9 @@ export class Engine {
     this.gtao.blendIntensity = 0.9
     this.gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.0, scale: 1.0, samples: 16 })
     this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 })
+    // AO мягкое и низкочастотное — считаем в половинном разрешении (в 4 раза меньше пикселей), смешиваем в полном
+    const gtaoSetSize = this.gtao.setSize.bind(this.gtao)
+    this.gtao.setSize = (w: number, h: number) => gtaoSetSize(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)))
     this.composer.addPass(this.gtao)
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.15, 0.35, 1.5)
     this.composer.addPass(this.bloom)
@@ -227,6 +244,8 @@ export class Engine {
       this.pointerDirty = true
     })
     window.addEventListener('resize', this.resize)
+    // ?quality=high — всегда полное разрешение (снимки экрана, мощная машина)
+    if (new URLSearchParams(location.search).get('quality') === 'high') this.quality.setMode('high')
     this.resize()
     this.renderer.setAnimationLoop(this.loop)
   }
@@ -299,6 +318,7 @@ export class Engine {
     t.snowCover = season === 'winter' || weather === 'snow' ? (weather === 'rain' ? 0.35 : 1) : 0
     t.wet = weather === 'rain' ? 1 : season === 'winter' && weather !== 'snow' ? 0.2 : 0
     this.trees?.setSeason(season)
+    this.shadowDirty = true
     // земля, зелень OSM, спортплощадки, газоны садов во дворе
     const SEASON_COLORS: Record<Season, [number, number, number, number]> = {
       winter: [0xb8b2a6, 0x8d8a6c, 0x7d876a, 0x92906f],
@@ -365,6 +385,8 @@ export class Engine {
     this.bloom.strength = 0.1 + 0.38 * this.lightsOn
     // в квартире светлые стены не должны «светиться» — порог выше
     this.bloom.threshold = THREE.MathUtils.lerp(1.5, this.mode === 'walk' ? 1.3 : 0.9, this.lightsOn)
+    // днём в квартире свечению не за что зацепиться (сверка кадров: разница 0) — проход не тратим
+    this.bloom.enabled = !(this.mode === 'walk' && this.lightsOn < 0.01)
 
     // паркинг под землёй: ровный нейтральный свет, не зависит от часа и погоды; без дымки
     if (this.mode === 'parking') {
@@ -471,6 +493,7 @@ export class Engine {
     const result: SunHours = { minutes: 0, intervals: [], sunrise: sd.sunrise, sunset: sd.sunset, dayMinutes: sd.dayLength * 60 }
     if (sd.sunrise === null || sd.sunset === null || !windows.length) return result
     const occ = this.sunOccluders()
+    const index = this.sunBVH ? this.rayIndexFor(occ) : null
     const ray = new THREE.Raycaster()
     ray.far = 800
     const dir = new THREE.Vector3()
@@ -482,6 +505,10 @@ export class Engine {
       dir.set(se, su, -sn).normalize()
       for (const w of windows) {
         if ((w.e * se + w.n * sn) / hz < 0.12) continue
+        if (index) {
+          if (!index.hits(w.p, dir, ray.far)) return true
+          continue
+        }
         ray.set(w.p, dir)
         if (ray.intersectObjects(occ, false).length === 0) return true
       }
@@ -516,6 +543,18 @@ export class Engine {
     if (open !== null) result.intervals.push([open, sd.sunset])
     result.minutes = Math.round(result.intervals.reduce((s, [a, b]) => s + (b - a) * 60, 0))
     return result
+  }
+
+  /** BVH по препятствиям солнца: в десятки раз быстрее перебора Raycaster; false — старый путь (для сверки) */
+  sunBVH = true
+  private rayIndex: { key: string; index: RayIndex } | null = null
+
+  /** Индекс строится один раз на набор препятствий и их положение; меняется набор — перестраивается */
+  private rayIndexFor(occ: THREE.Object3D[]): RayIndex {
+    for (const o of occ) o.updateWorldMatrix(true, false)
+    const key = occ.map((o) => `${o.uuid}:${o.matrixWorld.elements.map((x) => x.toFixed(3)).join(',')}`).join(';')
+    if (this.rayIndex?.key !== key) this.rayIndex = { key, index: new RayIndex(occ) }
+    return this.rayIndex.index
   }
 
   /** Дуга пути солнца над домом за выбранный день с отметками часов */
@@ -787,6 +826,7 @@ export class Engine {
     const wallRects = this.building.collisionRects(this.walkFloorN)
     const style = this.interiorStyle
     if (style !== 'none') {
+      // мебель и отделка сливаются по материалу внутри своих слоёв (furnish.ts) — кнопка «Мебель» прячет слой целиком
       this.furnished = furnish(this.walkLayout, style, ceilH, this.furnitureOn)
       this.furnished.group.position.y = base
       this.building.root.add(this.furnished.group)
@@ -794,6 +834,7 @@ export class Engine {
     } else this.mat.wallInt.color.set(0xebe6de)
     this.building.setRoomLabelsVisible(style === 'none')
     this.walkRects = [...wallRects, ...(this.furnished?.colliders ?? [])]
+    this.shadowDirty = true
   }
 
   private clearFurnishing() {
@@ -1118,6 +1159,7 @@ export class Engine {
   }
 
   private setXray(on: boolean) {
+    this.shadowDirty = true
     if (this.contextGroup) this.contextGroup.visible = !on
     if (this.lamps) this.lamps.group.visible = !on
     if (this.massing) this.massing.root.visible = !on
@@ -1316,6 +1358,7 @@ export class Engine {
 
   private loop = () => {
     const dt = Math.min(this.clock.getDelta(), 0.1)
+    this.adaptQuality()
     if (this.tween) {
       this.tween.t += dt / this.tween.d
       const k = this.tween.t >= 1 ? 1 : 1 - Math.pow(1 - this.tween.t, 3)
@@ -1338,6 +1381,7 @@ export class Engine {
     this.updateSunPathVisibility()
     // знак "P" у въезда — только в обзоре комплекса и корпуса
     if (this.parking?.marker) this.parking.marker.visible = this.mode === 'building' || this.mode === 'block'
+    this.updateShadows()
     // в VR постобработка не работает — рисуем напрямую
     if (this.renderer.xr.isPresenting) this.renderer.render(this.scene, this.camera)
     else this.composer.render(dt)
@@ -1347,6 +1391,57 @@ export class Engine {
   }
 
   private sunDir = new THREE.Vector3(0.3, 0.8, 0.5).normalize()
+
+  /**
+   * Карта теней: сразу — если сдвинулся свет (солнце, точка фокуса, охват) или сцена помечена изменённой,
+   * иначе раз в полсекунды (страховка от изменений, о которых движок не знает). При облёте вокруг дома
+   * фокус стоит на месте — тени не перерисовываются, а это треть вызовов отрисовки кадра.
+   */
+  private updateShadows() {
+    const sm = this.renderer.shadowMap
+    if (!this.sun.castShadow) return
+    const p = this.sun.position
+    const t = this.sun.target.position
+    const c = this.sun.shadow.camera
+    const key = `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)},${t.x.toFixed(2)},${t.y.toFixed(2)},${t.z.toFixed(2)},${c.right},${this.mode},${this.walkFloorN}`
+    const now = performance.now()
+    if (this.shadowDirty || key !== this.shadowKey || now - this.shadowAt > 500 || this.renderer.xr.isPresenting) {
+      sm.needsUpdate = true
+      this.shadowDirty = false
+      this.shadowKey = key
+      this.shadowAt = now
+    }
+  }
+
+  /** Адаптивное разрешение: при просадке FPS снижаем pixelRatio, при запасе — возвращаем */
+  private adaptQuality() {
+    const now = performance.now()
+    const dtMs = this.lastFrameAt ? now - this.lastFrameAt : 16
+    this.lastFrameAt = now
+    if (this.renderer.xr.isPresenting) return
+    const pr = this.quality.frame(dtMs, now)
+    if (pr !== null) this.applyPixelRatio(pr)
+  }
+
+  private applyPixelRatio(pr: number) {
+    if (Math.abs(this.renderer.getPixelRatio() - pr) < 1e-3) return
+    this.renderer.setPixelRatio(pr)
+    this.resize()
+  }
+
+  /** Качество: 'auto' — разрешение под видеокарту, 'high' — всегда максимальное */
+  setQuality(mode: QualityMode) {
+    this.applyPixelRatio(this.quality.setMode(mode))
+  }
+
+  get qualityMode(): QualityMode {
+    return this.quality.mode
+  }
+
+  /** текущий pixelRatio рендера (для «О данных») */
+  get renderScale(): number {
+    return this.renderer.getPixelRatio()
+  }
 
   private resize = () => {
     const w = this.canvasHost.clientWidth

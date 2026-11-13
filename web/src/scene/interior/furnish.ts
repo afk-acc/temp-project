@@ -3,6 +3,7 @@ import type { Rect } from '@/domain/types'
 import type { RoomPlan, Side, UnitLayout } from '@/domain/rooms'
 import { styleKit, type InteriorStyle, type StyleKit } from './styles'
 import * as P from './pieces'
+import { mergeStatic } from '../mergeStatic'
 import { NORMAL, doorSwing, planUnit, type Item, type UnitPlan } from './plan'
 
 /**
@@ -79,7 +80,11 @@ function layer(name: string): { group: THREE.Group; put: (obj: THREE.Object3D, x
   }
   return {
     group, put,
-    done: () => ({
+    done: () => {
+      // сотни мешей слоя → десятки: в разы меньше вызовов отрисовки (кадр, тени, нормали GTAO).
+      // Слой сливается сам по себе, поэтому мебель по-прежнему включается и выключается отдельно от отделки
+      mergeStatic(group)
+      return {
       group,
       dispose() {
         group.parent?.remove(group)
@@ -91,7 +96,8 @@ function layer(name: string): { group: THREE.Group; put: (obj: THREE.Object3D, x
           if (!Array.isArray(m.material) && (m.material as THREE.MeshStandardMaterial).userData.owned) m.material.dispose()
         })
       },
-    }),
+      }
+    },
   }
 }
 
