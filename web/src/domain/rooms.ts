@@ -40,14 +40,16 @@ export interface RoomPlan {
   rect: Rect
   /** зоны для мебели: [0] — rect, дальше — крупные прямоугольники в остатке слитной комнаты */
   zones: Rect[]
-  /** стороны прямоугольника с окнами (фасад) */
+  /** наружные стороны комнаты (фасад, с окнами или глухие) — для назначения комнат */
   facade: Side[]
+  /** стороны с окнами (стекло или проём в наружной стене) */
+  glazed: Side[]
   /** прямоугольники клеток комнаты — для пола и плинтуса */
   cells: Rect[]
   /** отрезки границы комнаты: [x0,y0,x1,y1, сторона, что за ней: 'wall'|'door'|'window'] */
   edges: [number, number, number, number, Side, EdgeKind][]
   doors: number[]
-  /** окна: участки фасада [x0,y0,x1,y1, сторона] */
+  /** окна: остеклённые участки границы [x0,y0,x1,y1, сторона] */
   windows: [number, number, number, number, Side][]
   name?: string
 }
@@ -61,6 +63,13 @@ export interface UnitLayout {
   kindAt(x: number, y: number): number
   /** номер комнаты в точке или -1 */
   roomAt(x: number, y: number): number
+  /** растр плана: клетки RES×RES, kind — что в клетке, label — номер комнаты или -1 */
+  grid: { x0: number; y0: number; nx: number; ny: number; res: number; kind: Uint8Array; label: Int32Array }
+  /**
+   * Точная координата ближайшей грани стены или стекла от точки (x, y) в сторону side (N — к +y, E — к +x)
+   * не дальше max; null — стены рядом нет. Растр огрублён до 10 см, а мебель ставится по реальной грани.
+   */
+  faceToward(x: number, y: number, side: Side, max?: number): number | null
 }
 
 const RES = 0.1
@@ -98,6 +107,16 @@ export function layoutUnit(ft: FloorType, unit: Unit): UnitLayout {
         }
       }
     }
+  }
+  // стены без учёта контура квартиры: глухая наружная стена или проём в ней
+  const rawWall = new Uint8Array(nx * ny)
+  for (const [a, b, c, d] of [...ft.walls_int, ...ft.walls_ext]) {
+    if (c < x0 || a > x1 || d < y0 || b > y1) continue
+    for (let j = Math.max(0, Math.floor((b - y0) / RES)); j <= Math.min(ny - 1, Math.floor((d - y0) / RES)); j++)
+      for (let i = Math.max(0, Math.floor((a - x0) / RES)); i <= Math.min(nx - 1, Math.floor((c - x0) / RES)); i++) {
+        const X = cx(i), Y = cy(j)
+        if (X >= a - 0.03 && X <= c + 0.03 && Y >= b - 0.03 && Y <= d + 0.03) rawWall[idx(i, j)] = 1
+      }
   }
   paint(ft.walls_int, WALL, 0.03)
   paint(ft.walls_ext, WALL, 0.03)
@@ -183,6 +202,7 @@ export function layoutUnit(ft: FloorType, unit: Unit): UnitLayout {
     // граница: что за каждой гранью клетки; окна — стекло или улица в пределах 0,5 м
     const edges: RoomPlan['edges'] = []
     const facadeCount: Record<Side, number> = { N: 0, S: 0, E: 0, W: 0 }
+    const glazedCount: Record<Side, number> = { N: 0, S: 0, E: 0, W: 0 }
     const winRuns: RoomPlan['windows'] = []
     const sideInfo: [Side, number, number][] = [['N', 0, 1], ['S', 0, -1], ['E', 1, 0], ['W', -1, 0]]
     const byRow = [...cells].sort((p, q) => p - q)
@@ -195,15 +215,23 @@ export function layoutUnit(ft: FloorType, unit: Unit): UnitLayout {
         if (mask(i + di, j + dj)) continue
         const nk = inGrid(i + di, j + dj) ? kind[idx(i + di, j + dj)] : OUT
         let ek: EdgeKind = nk === DOOR ? 'door' : nk === GLASS ? 'window' : 'wall'
+        // фасад — наружная сторона (для назначения комнат); окно — стекло или проём в наружной стене
+        // (за глухой наружной стеной — улица, но это стена: у неё плинтус, к ней можно ставить шкаф)
+        let exterior = ek === 'window'
         if (ek === 'wall') {
+          let solid = false
           for (let s = 1; s <= 5; s++) {
             const a = i + di * s, b = j + dj * s
             if (!inGrid(a, b)) break
-            if (outside[idx(a, b)] || kind[idx(a, b)] === GLASS) { ek = 'window'; break }
-            if (kind[idx(a, b)] === FREE && label[idx(a, b)] !== index) break
+            const q = idx(a, b)
+            if (kind[q] === GLASS) { ek = 'window'; exterior = true; break }
+            if (outside[q]) { exterior = true; if (!solid) ek = 'window'; break }
+            if (rawWall[q]) solid = true
+            if (kind[q] === FREE && label[q] !== index) break
           }
         }
-        if (ek === 'window') facadeCount[side]++
+        if (exterior) facadeCount[side]++
+        if (ek === 'window') glazedCount[side]++
         // ключ — линия границы и вид
         const fixed = dj !== 0 ? j + (dj > 0 ? 1 : 0) : i + (di > 0 ? 1 : 0)
         const along = dj !== 0 ? i : j
@@ -226,7 +254,8 @@ export function layoutUnit(ft: FloorType, unit: Unit): UnitLayout {
     }
     // сторона прямоугольника считается фасадной, если вдоль неё есть окно
     const facade = (['N', 'S', 'E', 'W'] as Side[]).filter((s) => facadeCount[s] * RES >= 0.6)
-    rooms.push({ index, kind: 'living', area: cells.length * RES * RES, rect, zones, facade, cells: cellRects, edges, doors: [], windows: winRuns })
+    const glazed = (['N', 'S', 'E', 'W'] as Side[]).filter((s) => glazedCount[s] * RES >= 0.5)
+    rooms.push({ index, kind: 'living', area: cells.length * RES * RES, rect, zones, facade, glazed, cells: cellRects, edges, doors: [], windows: winRuns })
   })
 
   // ---------- двери ----------
@@ -279,7 +308,38 @@ export function layoutUnit(ft: FloorType, unit: Unit): UnitLayout {
   }
 
   classify(rooms, doors, unit)
+  const solids = [...ft.walls_int, ...ft.walls_ext, ...ft.glass].filter(([a, b, c, d]) => !(c < x0 || a > x1 || d < y0 || b > y1))
+  const faceToward = (x: number, y: number, side: Side, max = 0.3): number | null => {
+    let best: number | null = null
+    for (const [a, b, c, d] of solids) {
+      if (side === 'N' || side === 'S') {
+        if (x < a - 1e-6 || x > c + 1e-6) continue
+        if (side === 'N' && d > y && b - y <= max && (best === null || b < best)) best = b
+        if (side === 'S' && b < y && y - d <= max && (best === null || d > best)) best = d
+      } else {
+        if (y < b - 1e-6 || y > d + 1e-6) continue
+        if (side === 'E' && c > x && a - x <= max && (best === null || a < best)) best = a
+        if (side === 'W' && a < x && x - c <= max && (best === null || c > best)) best = c
+      }
+    }
+    return best
+  }
+  // границы комнат — на реальную грань стены: плинтус и плитка вплотную к стене, без щели растра
+  for (const r of rooms) for (const e of r.edges) {
+    if (e[5] === 'door') continue
+    const horiz = e[4] === 'N' || e[4] === 'S'
+    const mx = (e[0] + e[2]) / 2, my = (e[1] + e[3]) / 2
+    const back = e[4] === 'N' || e[4] === 'E' ? -0.06 : 0.06
+    const f = horiz ? faceToward(mx, my + back, e[4], 0.2) : faceToward(mx + back, my, e[4], 0.2)
+    if (f === null) continue
+    const cur = horiz ? my : mx
+    if (Math.abs(f - cur) > 0.12) continue
+    if (horiz) e[1] = e[3] = f
+    else e[0] = e[2] = f
+  }
   return {
+    faceToward,
+    grid: { x0, y0, nx, ny, res: RES, kind, label },
     rooms,
     doors,
     kindAt(x, y) {

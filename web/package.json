@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "check:furniture": "esbuild scripts/check-furniture.ts --bundle --platform=node --format=esm --tsconfig=tsconfig.json --log-level=warning | node --input-type=module -"
   },
   "dependencies": {
     "three": "^0.170.0",

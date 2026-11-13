@@ -113,6 +113,7 @@ export class Engine {
   private roomLampMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
   // ---------- ремонт и мебель в прогулке ----------
   private interiorStyle: InteriorStyle = 'scandi'
+  private furnitureOn = true
   private furnished: Furnished | null = null
   private walkLayout: UnitLayout | null = null
   private walkUnit: Unit | null = null
@@ -752,7 +753,21 @@ export class Engine {
     if (this.mode !== 'walk' || !this.building) return
     this.buildFurnishing()
     this.roomLamps.visible = style === 'none'
-    // если после смены стиля стоим «в» мебели — отталкиваемся
+    this.nudgeOut()
+  }
+
+  /** Мебель в прогулке — отдельно от отделки: включается на лету, препятствия — только от включённой */
+  setFurniture(on: boolean) {
+    this.furnitureOn = on
+    if (this.mode !== 'walk' || !this.building || !this.furnished || this.walkFloorN === null) return
+    this.furnished.setFurniture(on)
+    this.walkRects = [...this.building.collisionRects(this.walkFloorN), ...this.furnished.colliders]
+    this.nudgeOut()
+  }
+
+  /** если стоим «в» мебели (после смены стиля или включения мебели) — отталкиваемся */
+  private nudgeOut() {
+    if (!this.building) return
     const [x, y] = this.building.worldToPlan(this.walk.pos)
     const [rx, ry] = pushOut(x, y, 0.24, this.walkRects)
     this.walk.pos.copy(this.building.planToWorld(rx, ry, this.walk.pos.y))
@@ -772,7 +787,7 @@ export class Engine {
     const wallRects = this.building.collisionRects(this.walkFloorN)
     const style = this.interiorStyle
     if (style !== 'none') {
-      this.furnished = furnish(this.walkLayout, style, ceilH)
+      this.furnished = furnish(this.walkLayout, style, ceilH, this.furnitureOn)
       this.furnished.group.position.y = base
       this.building.root.add(this.furnished.group)
       this.mat.wallInt.color.set(styleKit(style).wallColor)

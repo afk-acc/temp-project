@@ -27,6 +27,8 @@ export const state = reactive({
   interior: 'scandi' as InteriorStyle,
   /** чистый вид: панели скрыты, на экране только сцена */
   uiHidden: false,
+  /** мебель в прогулке (отдельно от отделки); в «Без отделки» не показывается */
+  furniture: true,
   xrSupported: false,
   xrActive: false,
   touched: false,

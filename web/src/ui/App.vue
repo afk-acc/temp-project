@@ -278,6 +278,7 @@ function startWalk() {
   if (!engine || !u) return
   state.mode = 'walk'
   engine.setInteriorStyle(state.interior)
+  engine.setFurniture(state.furniture)
   engine.enterWalk(u, scopeUnits.value, facades.value)
 }
 
@@ -383,6 +384,7 @@ watch(() => [state.sun.day, state.sun.hour] as const, ([d, h]) => engine?.setSun
 watch(() => [state.atmo.season, state.atmo.weather] as const, ([s, w]) => engine?.setAtmosphere(s, w))
 watch(() => state.atmo.sunPath, (on) => engine?.setSunPathVisible(on))
 watch(() => state.interior, (st) => engine?.setInteriorStyle(st))
+watch(() => state.furniture, (on) => engine?.setFurniture(on))
 
 function railHover(n: number | null) {
   engine?.hoverFloorFromUI(n)

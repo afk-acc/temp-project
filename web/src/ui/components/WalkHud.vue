@@ -55,6 +55,15 @@ onBeforeUnmount(() => emit('stick', 0, 0))
         v-for="st in INTERIOR_STYLES" :key="st.id" :class="{ on: state.interior === st.id }" :title="st.hint"
         @click="state.interior = st.id"
       >{{ st.label }}</button>
+      <span class="sep" aria-hidden="true" />
+      <button
+        class="furn" :class="{ on: state.furniture && state.interior !== 'none' }" :disabled="state.interior === 'none'"
+        :aria-pressed="state.furniture" :title="state.interior === 'none' ? 'Мебель — в квартире с ремонтом' : state.furniture ? 'Убрать мебель, оставить отделку' : 'Расставить мебель'"
+        @click="state.furniture = !state.furniture"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11V8a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v4H3zM6 17v2M18 17v2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Мебель
+      </button>
     </div>
     <div v-if="!touch" class="keys glass">
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ходьба</span>
@@ -78,6 +87,11 @@ onBeforeUnmount(() => emit('stick', 0, 0))
 .styles button { border: none; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
 .styles button:hover { color: var(--text); }
 .styles button.on { background: var(--accent); color: #1a1208; }
+.styles .sep { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--line-strong); }
+.styles button.furn { display: inline-flex; align-items: center; gap: 6px; }
+.styles button.furn.on { background: rgba(255,255,255,.14); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.styles button:disabled { opacity: .4; cursor: default; }
+.styles button:disabled:hover { color: var(--muted); }
 .what b { color: var(--text); }
 .keys { position: absolute; left: 16px; bottom: 84px; display: flex; gap: 16px; padding: 10px 14px; font-size: 12px; color: var(--muted); }
 kbd { display: inline-block; min-width: 22px; padding: 2px 6px; margin-right: 3px; border-radius: 6px; border: 1px solid var(--line-strong); background: rgba(255,255,255,.06); font: 600 11px var(--font); color: var(--text); text-align: center; }
