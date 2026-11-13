@@ -93,6 +93,49 @@
       "image": "/api/site/media/phone.webp"
     }
   },
+  "more": {
+    "eyebrow": "Demoda yangi",
+    "title": "Goʻyo shu uyda yashayotgandek",
+    "items": [
+      {
+        "k": "seasons",
+        "fig": "06-rasm — Qishki oqshom",
+        "t": "Fasllar, ob-havo va tun",
+        "d": "Dekabrda tomlarda qor, yozda barglar, yomgʻir va bulutlar, oqshom derazalardagi chiroqlar va hovlidagi fonarlar. Quyosh — sana va soatga aniq mos.",
+        "image": "/api/site/media/seasons.webp"
+      },
+      {
+        "k": "parking",
+        "fig": "07-rasm — Avtoturargoh",
+        "t": "Avtoturargoh qavatlari",
+        "d": "Uylar ostidagi qavatlar, joylar holat rangida, sotilgan joylarda mashinalar, quvvatlash va imkoniyati cheklanganlar uchun joylar. Ariza aniq joyga keladi.",
+        "image": "/api/site/media/parking.webp"
+      }
+    ],
+    "list": [
+      {
+        "t": "Quyosh yoʻli",
+        "d": "yilning istalgan kuni uy ustidagi quyosh yoyi va har bir xonadon derazalariga tushadigan toʻgʻridan-toʻgʻri quyosh soatlari"
+      },
+      {
+        "t": "Uch uslubda taʼmir",
+        "d": "skandi, neoklassika yoki loft mebel bilan — yoki quruvchi topshiradigan oq quti; toʻgʻridan-toʻgʻri sayr ichida"
+      },
+      {
+        "t": "Jonli holatlar",
+        "d": "menejer CRMda holatni oʻzgartiradi — 20 soniyada u saytda va savdo ofisidagi ekranda"
+      },
+      {
+        "t": "Savdo ofisi",
+        "d": "oʻsha maket katta ekranda; koʻrsatuvni internetsiz ham — noutbukdan oʻtkazish mumkin"
+      }
+    ],
+    "cta": {
+      "t": "Majmuangizda koʻrsatamiz",
+      "d": "Uyingizni ochiq maʼlumotlar asosida yigʻamiz va u bilan ofisingizga kelamiz — koʻrsatuv 20 daqiqa davom etadi.",
+      "btn": "Koʻrsatuvga yozilish"
+    }
+  },
   "crm": {
     "eyebrow": "Spliti CRM",
     "title": "Saytni oʻzi yangilaydigan shaxmatka",

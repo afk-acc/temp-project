@@ -13,6 +13,13 @@ export interface SiteContent {
     items: (Titled & { k: string; fig: string; image: string })[]
     lead: Titled & { name: string; where: string; status: string; ago: string; image: string }
   }
+  /** «Новое в демо» — сезоны, паркинг, ремонт; в старой базе может не быть, пока не прошёл spliti:site-import */
+  more?: {
+    eyebrow: string; title: string
+    items: (Titled & { k: string; fig: string; image: string })[]
+    list: Titled[]
+    cta: Titled & { btn: string }
+  }
   crm: { eyebrow: string; title: string; lead: string; items: string[]; image: string; fig: string }
   open: { eyebrow: string; title: string; text: string; sources: string[] }
   process: { eyebrow: string; title: string; steps: Titled[] }

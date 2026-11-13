@@ -6,6 +6,11 @@ CRM и сайт Spliti в пакет демо не идут: CRM нужен бэ
 Запуск из корня 3d-zhk:
   (cd web && ONLY=main npx vite build --base /nrg-bi/ --outDir ../deploy/nrg-bi --emptyOutDir)
   python3 -I tools/pack_deploy.py deploy/nrg-bi nrg-mirzo-ulugbek
+Офлайн-показ с ноутбука (без интернета и бэкенда) — сборка с относительной базой и локальный сервер:
+  (cd web && ONLY=main npx vite build --base ./ --outDir ../deploy/offline --emptyOutDir)
+  python3 -I tools/pack_deploy.py deploy/offline nrg-mirzo-ulugbek     # C1/Harizma — только на встречу с их застройщиком
+  python3 -I tools/serve_offline.py deploy/offline
+Бэкенд с базой и картинками в другом каталоге (например, из git worktree): BACKEND_DIR=/путь/к/backend python3 -I tools/pack_deploy.py …
 """
 from __future__ import annotations
 
@@ -14,7 +19,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BACKEND = os.path.join(ROOT, 'backend')
+BACKEND = os.environ.get('BACKEND_DIR') or os.path.join(ROOT, 'backend')
 
 
 def main(out: str, slugs: list[str]) -> None:
@@ -24,7 +29,13 @@ def main(out: str, slugs: list[str]) -> None:
     # 3D-страница собирается в demo/index.html — в пакете демо она становится корнем
     demo = os.path.join(target, 'demo', 'index.html')
     if os.path.exists(demo):
-        os.replace(demo, os.path.join(target, 'index.html'))
+        with open(demo, encoding='utf-8') as f:
+            html = f.read()
+        # сборка с --base ./ пишет пути от demo/ («../assets/…») — в корне пакета они становятся «./assets/…»
+        html = html.replace('="../', '="./')
+        with open(os.path.join(target, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(html)
+        os.remove(demo)
         os.rmdir(os.path.join(target, 'demo'))
     for name in ['crm/index.html'] + extra:
         path = os.path.join(target, name)
